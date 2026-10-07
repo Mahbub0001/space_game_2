@@ -36,10 +36,21 @@ export const EVENTS = {
   recorder:{label:'ARCHIVE RECOVERED',title:'“Please, bring the science home.”',speaker:'LAST RECORDED MESSAGE',body:'The station survived the storm, but its transmitter did not. Its final message repeats one request: preserve the data. You can spend reserves recovering the full archive, or depart with the validated samples.',choices:[{label:'Recover the complete archive.',detail:'−12 power · +22 science · full record ending',effect:'archive'},{label:'Preserve the return margin.',detail:'+8 fuel · +8 science · essential record ending',effect:'return'}]}
 };
 export const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-export function designStats(loadout=[0,1,1,1]) {
+export function designStats(loadout=[0,1,1,1], destination="earth") {
   const parts=SYSTEMS.map((s,i)=>s.choices[loadout[i]??0]);
   const cost=parts.reduce((n,p)=>n+p.cost,60);
   const dryMass=parts.reduce((n,p)=>n+p.mass,12), fuelMass=28;
   const deltaV=parts[0].isp*9.80665*Math.log((dryMass+fuelMass)/dryMass)/1000;
-  return {parts,cost,dryMass,mass:dryMass+fuelMass,deltaV,valid:cost<=320&&dryMass+fuelMass<=85,thrust:parts[0].thrust*(65/(dryMass+fuelMass)),efficiency:parts[0].efficiency,power:parts[1].capacity,armor:parts[2].armor,scan:parts[3].scan,yield:parts[3].yield};
+  const sunDistance={earth:1,moon:1,mars:1.52,asteroid:2.36,jupiter:5.2}[destination]||1;
+  // Illustrative concept specifications; these are not flight hardware ratings.
+  const thrustN=[200000,.35,280000][loadout[0]??0];
+  const generatedKW=loadout[1]===0?18/(sunDistance**2):loadout[1]===1?2.4:20;
+  const propulsionKW=loadout[0]===1?thrustN*parts[0].isp*9.80665/(2*.6*1000):.15;
+  const demandKW=.55+[.25,.45,.8][loadout[3]??0]+propulsionKW;
+  const powerMargin=generatedKW-demandKW,issues=[];
+  if(cost>320)issues.push('Reduce cost below $320M');
+  if(dryMass+fuelMass>85)issues.push('Reduce wet mass below 85 t');
+  if(powerMargin<0)issues.push('Power deficit at destination: change power or propulsion');
+  const acceleration=thrustN/((dryMass+fuelMass)*1000),massFlow=thrustN/(parts[0].isp*9.80665),burnSeconds=fuelMass*1000/massFlow;
+  return {sunDistance,thrustN,generatedKW,demandKW,powerMargin,acceleration,massFlow,burnSeconds,issues,parts,cost,dryMass,mass:dryMass+fuelMass,deltaV,valid:issues.length===0,thrust:parts[0].thrust*(65/(dryMass+fuelMass)),efficiency:parts[0].efficiency,power:parts[1].capacity,armor:parts[2].armor,scan:parts[3].scan,yield:parts[3].yield};
 }

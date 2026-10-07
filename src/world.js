@@ -1,3 +1,4 @@
+import {assembledVehicle,disposeModel} from './vehicle.js';
 import * as THREE from 'three';
 import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
 import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
@@ -86,7 +87,7 @@ export class SpaceWorld {
     this.planet=new THREE.Mesh(new THREE.SphereGeometry(1,96,64),new THREE.MeshStandardMaterial({color:0xffffff,roughness:.94,metalness:0}));this.space.add(this.planet);
     this.atmosphere=new THREE.Mesh(new THREE.SphereGeometry(1.025,64,48),new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.FrontSide,uniforms:{glowColor:{value:new THREE.Color(0x6996b7)}},vertexShader:'varying vec3 vN; varying vec3 vV; void main(){vec4 p=modelViewMatrix*vec4(position,1.);vN=normalize(normalMatrix*normal);vV=normalize(-p.xyz);gl_Position=projectionMatrix*p;}',fragmentShader:'varying vec3 vN; varying vec3 vV; uniform vec3 glowColor; void main(){float f=pow(1.0-max(dot(vN,vV),0.0),4.5);gl_FragColor=vec4(glowColor,f*.55);}' }));this.space.add(this.atmosphere);
     this.orbits=new THREE.Group();this.space.add(this.orbits);for(let i=0;i<2;i++){const points=[];for(let j=0;j<=160;j++){const a=j/160*Math.PI*2;points.push(V(Math.cos(a)*(47+i*5),Math.sin(a)*11,Math.sin(a)*42));}const orbit=new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),new THREE.LineBasicMaterial({color:0x63949f,transparent:true,opacity:i?.12:.4}));orbit.rotation.z=i?.4:-.22;this.orbits.add(orbit);}
-    this.ship=spacecraft();this.scene.add(this.ship);this.rover=rover();this.rover.visible=false;this.scene.add(this.rover);
+    this.ship=assembledVehicle();this.scene.add(this.ship);this.rover=rover();this.rover.visible=false;this.scene.add(this.rover);
     this.stageGroup=new THREE.Group();this.scene.add(this.stageGroup);this.targets=[];this.debris=[];
     this.scanWave=new THREE.Mesh(new THREE.SphereGeometry(1,24,16),new THREE.MeshBasicMaterial({color:CYAN,wireframe:true,transparent:true,opacity:0,depthWrite:false}));this.scene.add(this.scanWave);
     this.loadTextures();this.menu=true;this.destination={id:'mars',color:'#efa678'};this.setDestination(this.destination);
@@ -105,6 +106,11 @@ export class SpaceWorld {
   setPlanet(id){this.planetKey=id;this.planet.material.map=this.textures[id]||null;this.planet.material.color.set(this.textures[id]?(id==='mars'?0xecc6a1:0xffffff):id==='mars'?0xba7753:0x819daa);this.planet.material.needsUpdate=true;this.atmosphere.material.uniforms.glowColor.value.set(id==='mars'?0xc68d60:id==='earth'?0x3e9de8:0x7392a2);}
   clearStage(){this.stageGroup.traverse(o=>{if(o.isMesh){o.geometry?.dispose();if(o.material!==EMISSIVE){if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material?.dispose();}}});this.stageGroup.clear();this.targets=[];this.debris=[];}
   setupStage(sim){
+    const configuration=sim.loadout.join(',');
+    if(this.ship.userData.configuration!==configuration){
+      this.scene.remove(this.ship);disposeModel(this.ship);this.ship=assembledVehicle(sim.loadout);
+      this.ship.userData.configuration=configuration;this.scene.add(this.ship);
+    }
     this.menu=false;this.clearStage();this.stageGroup.visible=true;this.orbits.visible=false;this.ship.visible=!sim.isSurface;this.rover.visible=sim.isSurface;this.scene.fog=null;this.planet.visible=true;this.atmosphere.visible=true;
     const surface=(sim.stage===3||sim.stage===4)&&sim.destination.surface;
     this.surfaceScene=surface;this.terrainBase=sim.stage===3?-48:0;

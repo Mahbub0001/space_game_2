@@ -6,7 +6,7 @@ const point=(x,y,z)=>({x,y,z});
 export class Simulation {
   constructor({destination='mars',loadout=[0,1,1,1],difficulty='explorer',onEvent=()=>{}}={}) {
     this.destination=DESTINATIONS.find(d=>d.id===destination)||DESTINATIONS[2];
-    this.loadout=[...loadout]; this.stats=designStats(loadout); this.difficulty=difficulty; this.onEvent=onEvent;
+    this.loadout=[...loadout]; this.stats=designStats(loadout,this.destination.id); this.difficulty=difficulty; this.onEvent=onEvent;
     this.stage=0; this.mode='briefing';this.time=0;this.stageTime=0;this.score=0;this.hull=100;this.fuel=100;
     this.power=100;this.repairs=2;this.route='balanced';this.assist=false;this.eventFlags={};this.journal=[];this.collisions=0;
     this.scan=0;this.targetIndex=0;this.heat=0;this.immunity=0;this.pulse=0;this.fullArchive=false;

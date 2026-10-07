@@ -94,3 +94,12 @@ The interface test covers real keyboard input, budget gating, pause, power routi
 ## Adding the challenge resource pack
 
 When the event resource pack is available, connect its scientific objectives to `src/data.js`, update attribution in `SOURCES.md`, and distinguish measured data from game parameters. Source identifiers, units, uncertainty, and date ranges should travel with any imported data. The current game does not claim to use an unreleased resource pack or simulate an actual NASA flight plan.
+
+
+## Phase 00 — 3D spacecraft assembly
+
+Mission Design now opens a real-time assembly hangar. Choose each of the four sockets, then click an animated 3D component card to install it. All twelve variants have different geometry. Modules fly into position; remove, replace, explode, rotate and zoom the vehicle. Tab and Enter operate all controls, including camera buttons. Launch requires all four installed modules, completed installation, mass and budget limits, and nonnegative continuous power at the destination. Your assembled geometry follows the selected loadout into every flight stage and checkpoint restore.
+
+Engineering readouts include ideal rocket-equation delta-v, initial thrust/mass acceleration, full-propellant burn time from mass flow, inverse-square solar output, payload demand, and ion electrical demand at 60% efficiency. Dry bus is 12 t; fixed propellant load is 28 t. Module ratings and geometry are conceptual educational examples. The hangar is not a trajectory or launch vehicle solver. Orbital insertion is assumed to have already occurred. Flight is still an arcade simulation with scaled ion acceleration, energy reserves and an auxiliary descent system. Electrical launch gating does not model eclipses, thermal management, degradation or transient peak loads.
+
+New source modules: `src/vehicle.js` owns the shared modular ship geometry and `src/assembly.js` owns the hangar lifecycle and interface. The assembly update was production-built; previous browser verification records predate this feature.

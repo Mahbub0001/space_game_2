@@ -38,3 +38,10 @@ Browser speech synthesis uses a locally available system/browser voice. Captions
 - Rajdhani, IBM Plex Mono, Inter — SIL Open Font License, distributed through Fontsource
 
 The fonts, rendering libraries, and image files needed for gameplay are bundled into the production build. Gameplay makes no external data/API calls. External links in the credits panel open only when selected.
+
+
+## Assembly engineering model
+
+- NASA Glenn, Specific Impulse: https://www1.grc.nasa.gov/beginners-guide-to-aeronautics/specific-impulse/ — Isp and thrust / propellant mass-flow relationship. Consulted 2026-10-07.
+- NASA Small Spacecraft State of the Art, Power: https://www.nasa.gov/smallsat-institute/sst-soa/power-subsystems/ — solar power dependence on solar distance. Consulted 2026-10-07.
+- The game uses ideal delta-v, Newtonian initial acceleration and inverse-square illumination. Propulsion ratings (200 kN, 0.35 N, 280 kN), power-system ratings (18 kW at 1 AU, 2.4 kW conceptual radioisotope rack, 20 kW conceptual fission system), 60% electric propulsion efficiency, hardware masses and costs are authored concept assumptions, not specifications of actual NASA spacecraft. Mean solar distance is used. Geometry is procedural and illustrative, not an engineering CAD model.

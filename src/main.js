@@ -9,6 +9,8 @@ import {DESTINATIONS,SYSTEMS,STAGES,EVENTS,designStats,clamp} from './data.js';
 import {Simulation} from './simulation.js';
 import {SpaceWorld} from './world.js';
 import {FlightAudio} from './audio.js';
+import {AssemblyHangar} from './assembly.js';
+let assembly=null;
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -29,6 +31,7 @@ function showDialog(kind,html,wide=false){
   requestAnimationFrame(()=>$('#dialog').querySelector('button:not(:disabled),select,a')?.focus({preventScroll:true}));
 }
 function closeDialog(){
+  assembly?.dispose();assembly=null;
   $('#modal-layer').hidden=true;dialogKind=null;keys={};if(extraPaused){sim?.resume();extraPaused=false;}
   if(restoreFocus?.isConnected)restoreFocus.focus({preventScroll:true});
 }
@@ -46,8 +49,12 @@ function buildCards(){
   $('#destination-cards').innerHTML=DESTINATIONS.map((d,i)=>`<button class="destination-card ${i===selected?'selected':''}" data-destination="${i}" aria-pressed="${i===selected}" aria-label="Select ${d.name} mission"><span class="card-index">0${i+1} / ${d.id==='earth'?'LOW ORBIT':d.id==='jupiter'?'DEEP SPACE':'EXPEDITION'}</span><span class="card-planet" style="background-image:url('./textures/${d.id==='earth'?'earth.jpg':d.texture}')"></span><span class="card-text">${d.name}<small>${d.subtitle}</small></span><span class="card-corner">${records[d.id]?'✓':'↗'}</span></button>`).join('');
 }
 function designDialog(){
-  const d=DESTINATIONS[selected],stats=designStats(loadout);
-  showDialog('design',`${header('MISSION DESIGN / '+d.name,'ENGINEER YOUR ODYSSEY.',true)}<div class="design-layout"><div class="design-systems">${SYSTEMS.map((system,i)=>`<div class="system-group"><h3>${system.label}</h3><div class="module-choices">${system.choices.map((part,j)=>`<button class="module-option ${loadout[i]===j?'selected':''}" data-system="${i}" data-choice="${j}" aria-pressed="${loadout[i]===j}"><strong>${part.name}</strong><small>${part.description}</small><span>${part.mass} t &nbsp; / &nbsp; $${part.cost}M</span></button>`).join('')}</div></div>`).join('')}</div><aside class="design-summary"><h3>FLIGHT READINESS</h3><div class="design-stat"><span>MISSION BUDGET</span><b class="${stats.cost>320?'invalid':''}">$${stats.cost}<small> / 320M</small></b></div><div class="design-stat"><span>WET MASS</span><b class="${stats.mass>85?'invalid':''}">${stats.mass}<small> / 85 t</small></b></div><div class="design-stat"><span>IDEAL Δv / SINGLE STAGE</span><b>${stats.deltaV.toFixed(2)}<small> km/s</small></b></div><div class="design-stat"><span>SCIENTIFIC RETURN</span><b>×${stats.yield.toFixed(1)}<small> PAYLOAD</small></b></div><p>Δv uses the ideal rocket equation and 28 t of propellant. Real trajectories and launcher stages require separate engineering.</p><label for="difficulty-select">FLIGHT DIFFICULTY</label><select id="difficulty-select"><option value="explorer" ${difficulty==='explorer'?'selected':''}>EXPLORER · forgiving damage</option><option value="expedition" ${difficulty==='expedition'?'selected':''}>EXPEDITION · full damage</option></select></aside></div><div class="dialog-footer"><span>${stats.valid?'READY FOR FLIGHT · 6 PLAYABLE CHAPTERS · CHECKPOINTS ENABLED':'DESIGN EXCEEDS '+(stats.cost>320?'BUDGET':'MASS CAPACITY')+' · REVISE YOUR SYSTEMS'}</span><button class="primary-button" id="launch-button" ${!stats.valid?'disabled':''}><span>COMMIT & LAUNCH</span><b>↗</b></button></div>`,true);
+  assembly?.dispose();assembly=null;
+  const d=DESTINATIONS[selected];
+  showDialog('design',`${header('MISSION DESIGN / '+d.name,'BUILD YOUR ODYSSEY.',true)}<div id="assembly-root"></div>`,true);
+  $('#dialog').classList.add('assembly-dialog');
+  assembly=new AssemblyHangar($('#assembly-root'),loadout,d,value=>{loadout=value;},()=>audio.cue('success'));
+  $('#difficulty-select').value=difficulty;
   $('#difficulty-select').onchange=e=>{difficulty=e.target.value;};
 }
 function initializeFlight(checkpoint=null){
@@ -154,12 +161,12 @@ async function fullscreen(){try{if(document.fullscreenElement)await document.exi
 document.addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;audio.start();
   if(b.matches('[data-destination]')){selectDestination(Number(b.dataset.destination));audio.cue('click');}
-  if(b.matches('[data-system]')){loadout[Number(b.dataset.system)]=Number(b.dataset.choice);const {system,choice}=b.dataset;designDialog();$(`[data-system="${system}"][data-choice="${choice}"]`).focus();audio.cue('click');}
+
   if(b.matches('[data-close]')){closeDialog();if(sim?.mode==='paused')sim.resume();}
   if(b.matches('[data-effect]')){const effect=b.dataset.effect;closeDialog();audio.stopVoice();sim.choose(effect);}
   if(b.matches('[data-route]')&&sim?.mode==='flight')sim.setRoute(b.dataset.route);
   if(b.matches('[data-menu]'))returnMenu();
-  if(b.id==='launch-button')initializeFlight();
+  if(b.id==='launch-button'&&assembly?.ready)initializeFlight();
   if(b.id==='begin-stage'){closeDialog();sim.begin();}
   if(b.id==='resume-flight'){closeDialog();sim.resume();}
   if(b.id==='retry-button'){const checkpoint=sim.checkpoint;initializeFlight(checkpoint);}
@@ -175,7 +182,7 @@ $('#assist-button').onclick=()=>action('assist');$('#camera-button').onclick=()=
 const keymap={KeyW:'forward',KeyS:'brake',KeyA:'left',KeyD:'right',ArrowLeft:'left',ArrowRight:'right',ArrowUp:'up',ArrowDown:'down',Space:'boost',KeyE:'interact'};
 document.addEventListener('keydown',e=>{
   if(e.code==='KeyM'&&!e.repeat&&!e.target.matches('input,select,textarea')){e.preventDefault();soundToggle();return;}
-  if(e.code==='Tab'&&dialogKind){const buttons=[...$('#dialog').querySelectorAll('button:not(:disabled),select,a[href]')];const first=buttons[0],last=buttons.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}return;}
+  if(e.code==='Tab'&&dialogKind){const buttons=[...$('#dialog').querySelectorAll('button:not(:disabled),select,a[href],summary')].filter(el=>el.getClientRects().length>0);const first=buttons[0],last=buttons.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}return;}
   if(e.code==='Escape'){e.preventDefault();if(dialogKind==='pause'){closeDialog();sim?.resume();}else if(['controls','journal','credits','design'].includes(dialogKind)){closeDialog();if(sim?.mode==='paused')sim.resume();}else if(!dialogKind&&view==='flight')pauseMenu();return;}
   if(dialogKind){if(dialogKind==='event'&&['Digit1','Digit2'].includes(e.code)&&!e.repeat){e.preventDefault();$$('[data-effect]')[e.code==='Digit1'?0:1]?.click();}return;}
   if(e.target.matches('input,select,textarea'))return;
@@ -202,7 +209,7 @@ $$('[data-key]').forEach(b=>{b.onpointerdown=e=>{e.preventDefault();audio.start(
 function tick(now){
   const dt=Math.min((now-lastFrame)/1000,.1);lastFrame=now;accumulator+=dt;
   while(accumulator>=1/60){sim?.step(1/60,keys);accumulator-=1/60;}
-  world.update(dt,view==='flight'?sim:null);audio.update(dt,sim);
+  assembly?.update(dt);if(!assembly)world.update(dt,view==='flight'?sim:null);audio.update(dt,sim);
   if(view==='menu')$('#planet-rotation').textContent=(world.planet.rotation.y*180/Math.PI%360).toFixed(1).padStart(5,'0')+'°';
   else if(sim){
     if(now-lastHud>90){updateHud();drawRadar(now/1000);lastHud=now;}
