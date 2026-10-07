@@ -21,7 +21,7 @@ const getSaved=(key,fallback=null)=>{try{return JSON.parse(localStorage.getItem(
 const save=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{notify('Storage unavailable. This expedition can still be completed.','warning');}};
 let selected=2,loadout=[0,1,1,1],difficulty='explorer',sim=null,world,view='menu',dialogKind=null,restoreFocus=null,extraPaused=false;
 let lastJournal=getSaved('odyssey-journal',[]),records=getSaved('odyssey-records',{}),savedCheckpoint=getSaved('odyssey-checkpoint');
-const audio=new FlightAudio();let keys={},transcript='',typed=0,accumulator=0,lastFrame=performance.now(),lastHud=0,scanSound=0;
+const audio=new FlightAudio();let keys={},transcript='',typed=0,accumulator=0,lastFrame=performance.now(),lastHud=0,scanSound=0,hazardTipActive=false,reentryCommsSent=false;
 const settings=getSaved('odyssey-settings',{voice:true,quality:true,muted:false});audio.voice=settings.voice;audio.muted=settings.muted;
 const radar=$('#radar').getContext('2d');
 
@@ -73,14 +73,14 @@ function operationDialog(kind){
   bindOperation($('#dialog'),sim,kind,value=>{closeDialog();sim.resolveOperation(kind,value);},name=>audio.cue(name));
 }
 function initializeFlight(checkpoint=null){
-  closeDialog();audio.start();sim=checkpoint?Simulation.restore(checkpoint,handleEvent):new Simulation({destination:DESTINATIONS[selected].id,loadout,difficulty,campaign:committedPlan,onEvent:handleEvent});
+  closeDialog();audio.start();audio.stopKlaxon();audio.updateWind(0);document.body.classList.remove('hud-alert-critical','hud-alert-warning');sim=checkpoint?Simulation.restore(checkpoint,handleEvent):new Simulation({destination:DESTINATIONS[selected].id,loadout,difficulty,campaign:committedPlan,onEvent:handleEvent});
   view='flight';$('#menu-view').hidden=true;$('#flight-view').hidden=false;document.body.classList.add('in-flight');
   $('#touch-controls').hidden=!matchMedia('(pointer: coarse)').matches;world.setupStage(sim);saveCheckpoint();buildFlightHud();showBriefing();
 }
 function saveCheckpoint(){savedCheckpoint=sim.checkpoint;save('odyssey-checkpoint',savedCheckpoint);$('#resume-button').hidden=false;}
 function returnMenu(){
   if(sim){lastJournal=sim.journal;save('odyssey-journal',lastJournal);selected=DESTINATIONS.findIndex(d=>d.id===sim.destination.id);}
-  closeDialog();audio.stopVoice();sim=null;view='menu';keys={};$('#menu-view').hidden=false;$('#flight-view').hidden=true;$('#touch-controls').hidden=true;document.body.classList.remove('in-flight');buildCards();selectDestination(selected);$('#resume-button').hidden=!savedCheckpoint;
+  closeDialog();audio.stopVoice();audio.stopKlaxon();audio.updateWind(0);document.body.classList.remove('hud-alert-critical','hud-alert-warning');hazardTipActive=false;reentryCommsSent=false;sim=null;view='menu';keys={};$('#menu-view').hidden=false;$('#flight-view').hidden=true;$('#touch-controls').hidden=true;document.body.classList.remove('in-flight');buildCards();selectDestination(selected);$('#resume-button').hidden=!savedCheckpoint;
 }
 function stageInfo(){const stage={...STAGES[sim.stage]};if(!sim.destination.surface&&sim.stage===3){stage.title='RENDEZVOUS IN THE DARK';stage.verb='Rendezvous with the disabled probe';stage.message='The probe is ahead. Match its relative motion, slow below 10 meters per second, and hold E inside the capture zone. We will deploy a recovery drone from here.';stage.fact='A gas giant has no solid surface. This recovery operation takes place in space.';if(sim.destination.id==='earth')stage.fact='Docking and capture require matching relative velocity, not stopping in an absolute frame.';}if(!sim.destination.surface&&sim.stage===4){stage.title='THE RECOVERY OPERATION';stage.message='The recovery drone is away. Approach each marked record package, brake, and hold E to retrieve it. The last package is the primary science recorder.';stage.tip='W thrust · S brake · A/D translate · ↑/↓ altitude · E recover';}return stage;}
 function campaignBriefing(stage){
@@ -96,6 +96,7 @@ function showBriefing(){
   const s=campaignBriefing(stageInfo());showDialog('briefing',`${header('CHAPTER '+s.chapter+' / '+sim.destination.name,s.title)}<div class="stage-preview">${STAGES.map((_,i)=>`<span class="${i<=sim.stage?'active':''}"></span>`).join('')}</div><p class="dialog-lead">${s.message}</p><div class="briefing-fact"><span>⌬</span><p><b>THE SCIENCE BEHIND THE FLIGHT</b><br>${s.fact}</p></div><p class="briefing-tip">${s.tip}</p><div class="dialog-footer"><span>CHECKPOINT SAVED · H CONTROLS · ESC PAUSE</span><button class="primary-button" id="begin-stage"><span>${sim.stage===0?'TAKE THE CONTROLS':sim.isSurface?'DEPLOY THE ROVER':'CONTINUE EXPEDITION'}</span><b>↗</b></button></div>`);
 }
 function buildFlightHud(){
+  hazardTipActive=false;reentryCommsSent=false;
   const s=stageInfo();$('#flight-chapter').textContent=`${s.chapter} / ${s.short.toUpperCase()} · ${sim.destination.name}`;$('#flight-title').textContent=s.title;$('#objective-main').textContent=s.verb;
   $('#resource-bars').innerHTML=[['hull','HULL INTEGRITY','#a0dbd7'],['fuel','PROPELLANT','#e4bb82'],['power','POWER RESERVE','#87bedb']].map(([key,name,color])=>`<div class="resource-row" id="resource-${key}" style="--bar-color:${color}"><div><span>${name}</span><b><span id="value-${key}">100</span><small>%</small></b></div><span class="resource-track"><i id="bar-${key}" style="width:100%"></i></span></div>`).join('');
   $('#resource-bars').insertAdjacentHTML('beforeend','<div class="resource-row" style="--bar-color:#a8abdf"><div><span>COMMS LINK</span><b><span id="value-comms">82</span><small>%</small></b></div><span class="resource-track"><i id="bar-comms" style="width:82%"></i></span></div>');
@@ -110,7 +111,23 @@ function handleEvent(event){
   if(event.type==='operationResolved'){audio.cue('success');notify('DECISION LOGGED · YOUR MISSION HAS CHANGED');}
   if(event.type==='begin'){const s=stageInfo();communicate(s.commander,s.message);audio.cue('success');}
   if(event.type==='target'){audio.cue('success');notify('✓ '+event.name+' COMPLETE');updateObjectives();}
-  if(event.type==='impact'){audio.cue('impact');world.impact();const flash=$('#impact-flash');flash.classList.remove('flash');void flash.offsetWidth;flash.classList.add('flash');notify('IMPACT · Hull damage. Steer clear or press R to repair.','warning');}
+  if(event.type==='impact'){
+    audio.cue('impact');world.impact();const flash=$('#impact-flash');flash.classList.remove('flash');void flash.offsetWidth;flash.classList.add('flash');
+    const worldEl=$('#world');worldEl.classList.remove('screen-glitch');void worldEl.offsetWidth;worldEl.classList.add('screen-glitch');setTimeout(()=>worldEl.classList.remove('screen-glitch'),300);
+    notify('IMPACT · Hull damage. Steer clear or press R to repair.','warning');
+  }
+  if(event.type==='alertStateChange'){
+    if(event.level==='critical')audio.startKlaxon();
+    else audio.stopKlaxon();
+    document.body.classList.toggle('hud-alert-critical',event.level==='critical');
+    document.body.classList.toggle('hud-alert-warning',event.level==='warning');
+  }
+  if(event.type==='stormStateChange'){
+    if(event.active){
+      communicate('Flight Director','Severe Martian dust storm detected. High atmospheric static and solar charging degraded.');
+      notify('MARTIAN DUST STORM DETECTED · Solar power degraded','warning');
+    }
+  }
   if(event.type==='miss'){notify('TARGET OVERSHOT · Approach re-vectored ahead. Brake earlier.','warning');communicate('Navigation','We passed the approach window. A new intercept is marked ahead. Reduce speed.');}
   if(event.type==='repair'){audio.cue('success');notify('FIELD REPAIR COMPLETE · +30 HULL');}
   if(event.type==='pulse')audio.cue('scan');
@@ -120,16 +137,17 @@ function handleEvent(event){
   if(event.type==='event'){keys={};audio.cue('alert');const e=EVENTS[event.id];audio.speak(e.body);showDialog('event',`${header(e.label,e.title)}<p class="eyebrow event-warning">${e.speaker}</p><p class="dialog-lead">${e.body}</p><div class="event-choices">${e.choices.map((c,i)=>`<button class="event-choice" data-effect="${c.effect}"><kbd>${i+1}</kbd><span><strong>${c.label}</strong><small>${c.detail}</small></span><span>→</span></button>`).join('')}</div>`);}
   if(event.type==='choice'){audio.cue('click');communicate('Mission control','Decision logged. Your flight profile has been updated.',false);}
   if(event.type==='stageComplete'){
-    keys={};audio.stopVoice();audio.cue('transition');$('#cinematic-kicker').textContent='CHAPTER '+String(sim.stage+1).padStart(2,'0')+' COMPLETE';$('#cinematic-title').textContent=STAGES[sim.stage+1].title;
+    keys={};audio.stopVoice();audio.stopKlaxon();audio.updateWind(0);document.body.classList.remove('hud-alert-critical','hud-alert-warning');hazardTipActive=false;reentryCommsSent=false;
+    $('#cinematic-kicker').textContent='CHAPTER '+String(sim.stage+1).padStart(2,'0')+' COMPLETE';$('#cinematic-title').textContent=STAGES[sim.stage+1].title;
     $('#cinematic-copy').textContent=sim.stage===0?`${sim.campaign?flightPlan(sim.campaign).days:sim.destination.days} days of coast, compressed into the next chapter.`:sim.stage===3?(sim.destination.surface?'Touchdown confirmed. Deploying the surface rover.':'Rendezvous confirmed. Deploying the recovery vehicle.'):sim.stage===4?'Departure burn complete. The long journey home begins.':'Trajectory confirmed. Reconfiguring flight systems.';
     $('#cinematic').hidden=false;setTimeout(()=>{if(sim?.mode==='transition'){sim.advance();}$('#cinematic').hidden=true;},3900);
   }
   if(event.type==='stage'){world.setupStage(sim);saveCheckpoint();buildFlightHud();showBriefing();}
   if(event.type==='complete')completeMission();
-  if(event.type==='failed'){audio.cue('alert');keys={};showDialog('failed',`${header('MISSION INTERRUPTED',event.title)}<p>${event.message}</p><div class="dialog-actions"><button class="primary-button" id="retry-button"><span>RETRY STAGE CHECKPOINT</span><b>↗</b></button><button class="outline-button" data-menu>MISSION SELECTION</button></div>`);}
+  if(event.type==='failed'){audio.cue('alert');audio.stopKlaxon();audio.updateWind(0);document.body.classList.remove('hud-alert-critical','hud-alert-warning');keys={};showDialog('failed',`${header('MISSION INTERRUPTED',event.title)}<p>${event.message}</p><div class="dialog-actions"><button class="primary-button" id="retry-button"><span>RETRY STAGE CHECKPOINT</span><b>↗</b></button><button class="outline-button" data-menu>MISSION SELECTION</button></div>`);}
 }
 function completeMission(){
-  keys={};audio.cue('success');audio.stopVoice();const rank=sim.score>=185&&sim.hull>=65?'S':sim.score>=155?'A':sim.score>=115?'B':'C';
+  keys={};audio.cue('success');audio.stopVoice();audio.stopKlaxon();audio.updateWind(0);document.body.classList.remove('hud-alert-critical','hud-alert-warning');hazardTipActive=false;reentryCommsSent=false;const rank=sim.score>=185&&sim.hull>=65?'S':sim.score>=155?'A':sim.score>=115?'B':'C';
   const result={score:Math.round(sim.score),rank,time:sim.time,hull:Math.round(sim.hull),fullArchive:sim.fullArchive,destination:sim.destination.name,journal:sim.journal,campaign:sim.campaign,loadout:sim.loadout,date:new Date().toISOString()};
   if(!records[sim.destination.id]||records[sim.destination.id].score<result.score){records[sim.destination.id]=result;save('odyssey-records',records);}
   savedCheckpoint=null;try{localStorage.removeItem('odyssey-checkpoint');}catch{}$('#resume-button').hidden=true;lastJournal=sim.journal;save('odyssey-journal',lastJournal);
@@ -170,6 +188,27 @@ function updateHud(){
   $('#interact-label').textContent=sim.canInteract?(sim.stage===5?'HOLD TO DOCK':sim.stage===3?'HOLD TO '+(sim.destination.surface?'LAND':'CAPTURE'):sim.isSurface?'HOLD TO COLLECT':'HOLD TO SCAN'):(sim.range>(sim.isSurface?24:sim.stage===2||sim.stage===4?65:35)?'MOVE CLOSER':'BRAKE TO STABILIZE');
   $('#scan-progress').style.width=clamp(sim.scan,0,1)*100+'%';
   if(sim.target){$('#marker-label').textContent=sim.target.name;$('#marker-range').textContent=Math.round(sim.range)+' M';$('#target-marker').classList.toggle('ready',!!sim.canInteract);}
+  if(sim.isSurface&&sim.stormActive){
+    audio.updateWind(sim.stormIntensity);
+    hazardTipActive=true;
+    $('#flight-tip').innerHTML='<span style="color:var(--amber)">⚠ MARTIAN DUST STORM ACTIVE: SOLAR CHARGING INHIBITED</span>';
+  } else if(sim.stage===3&&sim.reentryIntensity>0.3){
+    audio.updateWind(sim.reentryIntensity);
+    hazardTipActive=true;
+    $('#flight-tip').innerHTML='<span style="color:var(--red)">⚠ CRITICAL RE-ENTRY HEAT: ENGAGE BRAKE <kbd>S</kbd></span>';
+    if(!reentryCommsSent){
+      reentryCommsSent=true;
+      communicate('Flight Director','Warning: High thermal friction detected. Engage retro-thrusters to manage descent.');
+      notify('CRITICAL RE-ENTRY HEAT · Engage brake S','warning');
+    }
+  } else {
+    audio.updateWind(0);
+    if(sim.reentryIntensity<=0.1)reentryCommsSent=false;
+    if(hazardTipActive){
+      hazardTipActive=false;
+      $('#flight-tip').innerHTML=sim.isSurface?'DRIVE <kbd>W</kbd><kbd>S</kbd> &nbsp; STEER <kbd>A</kbd><kbd>D</kbd> &nbsp; STOP & COLLECT <kbd>E</kbd>':'THRUST <kbd>W</kbd> &nbsp; BRAKE <kbd>S</kbd> &nbsp; STEER <kbd>A</kbd><kbd>D</kbd> &nbsp; ALTITUDE <kbd>↑</kbd><kbd>↓</kbd>';
+    }
+  }
 }
 function drawRadar(time){
   const c=radar,w=240,h=170,cx=120,cy=85;c.clearRect(0,0,w,h);c.strokeStyle='#709ea339';c.lineWidth=.7;
