@@ -4,6 +4,8 @@
 
 - Production build successful; **34 automated checks pass**. Geometry checks cover all 27 components, and simulation checks cover larger-tank delta-v/reserve trade-offs, communications, cooling, control response, recovery rewards and migration of four-module checkpoints.
 - `tests/browser-assembly.mjs` passed in Edge: all nine sockets installed with keyboard input, invalid power configuration blocked, component removal/reinstallation, 390 px layout, mission planning and checkpoint restoration. Zero page errors.
+- `tests/browser-campaign.mjs` completed all six Mars chapters with nine installed modules, relay clues, keyboard spectral tuning, all rover records, interpretation and Earth docking: **236 science, 83% hull, 2 collisions, zero page errors**. Optional guidance and an accelerated test clock were used.
+- `tests/browser-interaction.mjs` passed: a single E press completes each relay scan, native slider keys reach the intended wavelengths, both quick-tune buttons acquire their guides, and landing commitment unlocks only after two guides and a selected site.
 - Additional subsystem multipliers are conceptual game parameters. Communication hardware does not compute a physical radio link budget; attitude actuators share a simplified lateral-response model. Tank propellant and structure mass enter the existing ideal rocket equation.
 
 ## Free-choice Mars expedition — 2026-10-08

@@ -28,7 +28,7 @@ try{
   }
   if(await page.locator('#ack-clue').isVisible()){await page.locator('#ack-clue').click();await page.keyboard.up('e');await page.keyboard.down('e');}
   if(await page.locator('#survey-confirm').isVisible()){
-   await page.locator('#band-tuner').focus();await page.keyboard.press('Home');for(let i=0;i<90;i++)await page.keyboard.press('ArrowRight');await page.locator('#acquire-band').click();
+   await page.locator('#band-tuner').focus();await page.keyboard.press('Home');for(let i=0;i<40;i++)await page.keyboard.press('ArrowRight');await page.locator('#acquire-band').click();
    await page.locator('#band-tuner').focus();for(let i=0;i<20;i++)await page.keyboard.press('ArrowRight');await page.locator('#acquire-band').click();
    await page.locator('[data-site="boundary"]').click();await expect(page.locator('#survey-confirm')).toBeEnabled();await page.screenshot({path:'previews/mineral-investigation.png'});await page.locator('#survey-confirm').click();
   }
