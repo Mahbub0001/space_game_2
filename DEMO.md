@@ -1,4 +1,4 @@
-# ODYSSEY — suggested judge demonstration
+# Mission Forge — suggested judge demonstration
 
 ## Core statement
 

@@ -17,7 +17,7 @@ const server=http.createServer(async(req,res)=>{
 });
 let port=4173;server.on('error',error=>{if(error.code==='EADDRINUSE'&&port<4190){port++;server.listen(port,'127.0.0.1');}else{console.error(error.message);process.exit(1);}});
 server.on('listening',()=>{
-  const url=`http://127.0.0.1:${port}`;console.log(`\nODYSSEY — The Last Transmission\n${url}\n\nKeep this window open while playing. Press Ctrl+C to stop.\n`);
+  const url=`http://127.0.0.1:${port}`;console.log(`\nMission Forge — The Last Transmission\n${url}\n\nKeep this window open while playing. Press Ctrl+C to stop.\n`);
   if(!process.argv.includes('--no-open')){
     const command=process.platform==='win32'?'cmd':process.platform==='darwin'?'open':'xdg-open';
     const args=process.platform==='win32'?['/c','start','',url]:[url];

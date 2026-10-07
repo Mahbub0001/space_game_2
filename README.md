@@ -1,4 +1,4 @@
-# ODYSSEY — The Last Transmission
+# Mission Forge — The Last Transmission
 
 **Featured update:** start a new Mars mission for 3D assembly, transfer planning, electrical fault recovery, interactive mineral investigation and a decision-based debrief. See [CAMPAIGN.md](CAMPAIGN.md) for controls, scientific boundaries and verification, and [DEMO.md](DEMO.md) for a suggested judge presentation.
 

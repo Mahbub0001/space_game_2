@@ -1,4 +1,4 @@
-# Verification — ODYSSEY v2
+# Verification — Mission Forge v2
 
 ## Expanded Mars campaign — 2026-10-07
 
