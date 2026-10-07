@@ -1,5 +1,12 @@
 export class FlightAudio {
-  constructor(){this.muted=false;this.voice=true;this.ctx=null;this.lastWarning=0;this.musicTime=0;this.lastProximity=0;}
+  constructor(){
+    this.muted=false;this.voice=true;this.ctx=null;this.lastWarning=0;this.musicTime=0;this.lastProximity=0;
+    this.klaxonActive=false;
+    this.klaxonTimer=null;
+    this.windSource=null;
+    this.windFilter=null;
+    this.windGain=null;
+  }
   async start(){
     if(this.ctx){await this.ctx.resume();return;}
     try{
@@ -17,7 +24,73 @@ export class FlightAudio {
       this.noiseGain=this.ctx.createGain();this.noiseGain.gain.value=.02;this.noise.connect(this.noiseGain);this.noiseGain.connect(this.master);this.noise.start();
     }catch(error){console.warn('Audio unavailable:',error.message);}
   }
-  toggle(){this.muted=!this.muted;if(this.master)this.master.gain.setTargetAtTime(this.muted?0:.5,this.ctx.currentTime,.1);if(this.muted)window.speechSynthesis?.cancel();return !this.muted;}
+  toggle(){
+    this.muted=!this.muted;
+    if(this.master)this.master.gain.setTargetAtTime(this.muted?0:.5,this.ctx.currentTime,.1);
+    if(this.muted){
+      this.stopKlaxon();
+      if(this.windGain){
+        this.windGain.gain.value=0;
+        if(this.ctx)this.windGain.gain.setTargetAtTime(0,this.ctx.currentTime,.1);
+      }
+      if(typeof window!=='undefined')window.speechSynthesis?.cancel();
+    }
+    return !this.muted;
+  }
+  startKlaxon(){
+    if(this.muted||this.klaxonActive||!this.ctx)return;
+    this.klaxonActive=true;
+    this.klaxonTimer=setInterval(()=>{
+      if(!this.klaxonActive||this.muted)return;
+      this.tone(880,0.22,'sawtooth',0.12);
+      setTimeout(()=>{
+        if(this.klaxonActive&&!this.muted){
+          this.tone(660,0.22,'sawtooth',0.12);
+        }
+      },280);
+    },600);
+  }
+  stopKlaxon(){
+    this.klaxonActive=false;
+    if(this.klaxonTimer){
+      clearInterval(this.klaxonTimer);
+      this.klaxonTimer=null;
+    }
+  }
+  initWind(){
+    if(!this.ctx||this.windSource)return;
+    const bufferSize=this.ctx.sampleRate*2;
+    const buffer=this.ctx.createBuffer(1,bufferSize,this.ctx.sampleRate);
+    const data=buffer.getChannelData(0);
+    for(let i=0;i<bufferSize;i++){
+      data[i]=(Math.random()*2-1)*0.3;
+    }
+    this.windSource=this.ctx.createBufferSource();
+    this.windSource.buffer=buffer;
+    this.windSource.loop=true;
+    this.windFilter=this.ctx.createBiquadFilter();
+    this.windFilter.type='bandpass';
+    this.windFilter.frequency.value=240;
+    this.windFilter.Q.value=3.5;
+    this.windGain=this.ctx.createGain();
+    this.windGain.gain.value=0;
+    this.windSource.connect(this.windFilter);
+    this.windFilter.connect(this.windGain);
+    this.windGain.connect(this.master);
+    this.windSource.start();
+  }
+  updateWind(intensity){
+    if(this.muted||!this.ctx)return;
+    if(!this.windSource)this.initWind();
+    if(this.windGain){
+      const targetGain=this.muted?0:Math.max(0,Math.min(0.4,intensity*0.35));
+      this.windGain.gain.setTargetAtTime(targetGain,this.ctx.currentTime,0.1);
+    }
+    if(this.windFilter){
+      const targetFreq=180+intensity*350;
+      this.windFilter.frequency.setTargetAtTime(targetFreq,this.ctx.currentTime,0.15);
+    }
+  }
   tone(frequency=600,duration=.12,type='sine',volume=.13,slide=0){if(!this.ctx||this.muted)return;const t=this.ctx.currentTime;const o=this.ctx.createOscillator(),g=this.ctx.createGain();o.type=type;o.frequency.setValueAtTime(frequency,t);if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(20,frequency+slide),t+duration);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(volume,t+.012);g.gain.exponentialRampToValueAtTime(.001,t+duration);o.connect(g);g.connect(this.master);o.start(t);o.stop(t+duration+.02);}
   cue(name){
     if(name==='click')this.tone(950,.05,'sine',.07,-220);

@@ -85,3 +85,84 @@ test('Alert and storm state changes emit events', () => {
   assert.ok(events.some(e => e.type === 'stormStateChange' && e.active === true));
 });
 
+test('FlightAudio exposes klaxon and wind hazard methods without throwing when uninitialized', async () => {
+  const {FlightAudio} = await import('../src/audio.js');
+  const audio = new FlightAudio();
+  assert.strictEqual(typeof audio.startKlaxon, 'function');
+  assert.strictEqual(typeof audio.stopKlaxon, 'function');
+  assert.strictEqual(typeof audio.updateWind, 'function');
+  // Safe calls before user audio interaction (no AudioContext)
+  assert.doesNotThrow(() => audio.startKlaxon());
+  assert.doesNotThrow(() => audio.updateWind(0.8));
+  assert.doesNotThrow(() => audio.stopKlaxon());
+});
+
+test('FlightAudio klaxon and procedural wind modulate parameters with mock AudioContext', async () => {
+  const {FlightAudio} = await import('../src/audio.js');
+  const audio = new FlightAudio();
+  const setTargetCalls = [];
+  const mockGain = {
+    gain: {
+      value: 0,
+      setTargetAtTime: (val, time, constant) => setTargetCalls.push({val, time, constant})
+    },
+    connect: () => {}
+  };
+  const mockFilter = {
+    type: '',
+    frequency: {
+      value: 0,
+      setTargetAtTime: (val, time, constant) => setTargetCalls.push({val, time, constant})
+    },
+    Q: { value: 0 },
+    connect: () => {}
+  };
+  const mockSource = {
+    buffer: null,
+    loop: false,
+    connect: () => {},
+    start: () => {}
+  };
+  audio.ctx = {
+    currentTime: 10,
+    sampleRate: 44100,
+    createBuffer: () => ({ getChannelData: () => new Float32Array(88200) }),
+    createBufferSource: () => mockSource,
+    createBiquadFilter: () => mockFilter,
+    createGain: () => mockGain
+  };
+  audio.master = mockGain;
+
+  // Test wind initialization and intensity modulation
+  audio.updateWind(0.8);
+  assert.ok(audio.windSource, 'windSource should be initialized');
+  assert.strictEqual(audio.windFilter.type, 'bandpass');
+  assert.strictEqual(audio.windFilter.Q.value, 3.5);
+  assert.strictEqual(audio.windFilter.frequency.value, 240);
+  assert.ok(setTargetCalls.length >= 2, 'Should schedule gain and frequency targets');
+
+  // Test klaxon activation and timer
+  audio.startKlaxon();
+  assert.strictEqual(audio.klaxonActive, true);
+  assert.ok(audio.klaxonTimer !== null);
+
+  // Calling startKlaxon again while active should be a no-op
+  const currentTimer = audio.klaxonTimer;
+  audio.startKlaxon();
+  assert.strictEqual(audio.klaxonTimer, currentTimer);
+
+  // Test stop klaxon
+  audio.stopKlaxon();
+  assert.strictEqual(audio.klaxonActive, false);
+  assert.strictEqual(audio.klaxonTimer, null);
+
+  // Test toggle mute stops klaxon and silences wind gain
+  audio.startKlaxon();
+  assert.strictEqual(audio.klaxonActive, true);
+  audio.toggle();
+  assert.strictEqual(audio.muted, true);
+  assert.strictEqual(audio.klaxonActive, false);
+  assert.strictEqual(audio.klaxonTimer, null);
+  assert.strictEqual(audio.windGain.gain.value, 0);
+});
+
