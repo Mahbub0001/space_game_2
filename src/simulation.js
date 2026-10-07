@@ -12,7 +12,7 @@ export class Simulation {
     if(this.campaign){this.campaign.clues??=[];this.campaign.evidence??=[];this.campaign.decisions??=[];this.campaign.completed??={};}
     this.stage=0; this.mode='briefing';this.time=0;this.stageTime=0;this.score=0;this.hull=100;this.fuel=100;
     this.power=100;this.repairs=2;this.route='balanced';this.assist=false;this.eventFlags={};this.journal=[];this.collisions=0;
-    this.scan=0;this.targetIndex=0;this.heat=0;this.immunity=0;this.pulse=0;this.fullArchive=false;
+    this.scan=0;this.targetIndex=0;this.heat=0;this.immunity=0;this.pulse=0;this.fullArchive=false;this.interactionQueued=false;
     this.reentryIntensity=0;this.stormActive=false;this.stormIntensity=0;this.alertLevel='nominal';
     this.setupStage();
   }
@@ -24,7 +24,7 @@ export class Simulation {
   get missionProgress(){return (this.stage+Math.max(0,this.targetIndex)/Math.max(1,this.targets.length))/6;}
   get canDepartSurface(){return !!(this.campaign&&this.isSurface&&this.targets[2]?.done&&(this.targets[0]?.done||this.targets[1]?.done));}
   setupStage(){
-    this.stageTime=0;this.targetIndex=0;this.scan=0;this.canInteract=false;this.speedCommand=0;this.heat=0;this.heading=0;this.stranded=0;this.throttle=0;
+    this.stageTime=0;this.targetIndex=0;this.scan=0;this.canInteract=false;this.interactionQueued=false;this.speedCommand=0;this.heat=0;this.heading=0;this.stranded=0;this.throttle=0;
     this.reentryIntensity=0;this.stormActive=false;this.stormIntensity=0;
     this.position=point(0,this.isSurface?0:8,60);this.velocity=point(0,0,0);this.immunity=2;
     const names=['NAVIGATION GATE 01','NAVIGATION GATE 02','DEPARTURE VECTOR'];
@@ -57,7 +57,13 @@ export class Simulation {
   }
   selectSurfaceTarget(index){
     if(this.mode!=='flight'||!this.campaign||!this.isSurface||!Number.isInteger(index)||index<0||index>=this.targets.length||this.targets[index].done)return false;
-    this.targetIndex=index;this.scan=0;this.canInteract=false;this.emit('selection',{index,name:this.target.name});return true;
+    this.targetIndex=index;this.scan=0;this.canInteract=false;this.interactionQueued=false;this.emit('selection',{index,name:this.target.name});return true;
+  }
+  requestInteraction(){
+    if(this.mode!=='flight'||!this.target)return false;
+    if(this.stage<2){this.emit('interactionHint',{message:'Fly through the marked gate. E is used for scanning and recovery later.'});return false;}
+    if(this.range>110){this.emit('interactionHint',{message:'Move within 110 m of the marked target, then press E to start the operation.'});return false;}
+    this.interactionQueued=true;this.emit('interactionHint',{message:'Operation armed. Stay near the target while the craft stabilizes and the progress bar fills.'});return true;
   }
   departSurface(){
     if(this.mode!=='flight'||!this.canDepartSurface||this.campaign.completed.analysis)return false;
@@ -102,7 +108,7 @@ export class Simulation {
   }
   completeTarget(){
     const index=this.targetIndex,target=this.target;target.done=true;this.score+=this.stage<2?4:Math.round(10*this.stats.yield);
-    this.scan=0;
+    this.scan=0;this.interactionQueued=false;
     if(this.campaign&&this.isSurface){
       const kinds=['mineral','context','recorder'];this.campaign.evidence.push({name:target.name,kind:kinds[index]});
       this.log(target.name,['Mineral core sealed with its collection location.','Layer context recorded in a camera mosaic.','The field vehicle held the station crew’s final record.'][index]);
@@ -139,7 +145,7 @@ export class Simulation {
       this.heading+=turn*dt*1.45*(.7+.3*traction);
       this.speedCommand=clamp(this.speedCommand+drive*dt*12*traction,-7,19);
       if(!drive)this.speedCommand*=Math.exp(-dt*3*traction);
-      if(keys.interact&&this.range<24)this.speedCommand*=Math.exp(-dt*7);
+      if((keys.interact||this.interactionQueued)&&this.range<35)this.speedCommand*=Math.exp(-dt*7);
       this.velocity.x=Math.sin(this.heading)*this.speedCommand;this.velocity.z=-Math.cos(this.heading)*this.speedCommand;this.velocity.y=0;
     }else{
       let forward=(keys.forward?1:0),brake=(keys.brake?1:0),sx=(keys.right?1:0)-(keys.left?1:0),sy=(keys.up?1:0)-(keys.down?1:0);
@@ -156,6 +162,10 @@ export class Simulation {
       if(brake)this.speedCommand-=accel*1.8*dt;
       if(boost)this.speedCommand+=accel*2.3*dt;
       this.speedCommand=clamp(this.speedCommand,-18,boost?100:62);
+      if(this.interactionQueued&&this.range<(this.stage===2||this.stage===4?75:45)){
+        this.speedCommand=clamp(this.speedCommand,-6,6);
+        this.velocity.x*=Math.exp(-dt*8);this.velocity.y*=Math.exp(-dt*8);
+      }
       if(!boost&&this.speedCommand>62)this.speedCommand-=18*dt;
       this.velocity.x=(this.velocity.x+sx*27*thrust*dt)*Math.exp(-dt*1.7);
       this.velocity.y=(this.velocity.y+sy*25*thrust*dt)*Math.exp(-dt*1.7);
@@ -181,7 +191,7 @@ export class Simulation {
       const maxRange=surface?24:this.stage===2||this.stage===4?65:35;
       const maxSpeed=surface?4:this.stage===5?8:this.stage===3?10:12;
       this.canInteract=range<maxRange&&this.speed<maxSpeed;
-      if(keys.interact&&this.canInteract){
+      if((keys.interact||this.interactionQueued)&&this.canInteract){
         const scanRate=this.stage===2||this.stage===4?this.stats.scan:1;
         this.scan+=dt/(surface?3.4:4)*scanRate*(this.route==='science'?1.55:1);
         this.power=clamp(this.power-dt*.16,0,100);

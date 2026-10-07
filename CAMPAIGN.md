@@ -18,6 +18,8 @@ Start a **new Mars mission** for the expanded experience. Other destinations ret
 
 Tab/Shift+Tab and Enter operate interface controls. Keys 1–4 select hangar sockets. Native arrow keys adjust the wavelength slider. On the Mars surface, Z cycles the three evidence leads and X departs once the minimum evidence is aboard. The existing flight manual documents flight keys. All operations provide textual feedback; sound is optional. Mobile layouts stack operation cards and preserve access to actions through scrolling.
 
+In the first two flight chapters, pass through the marked navigation gates; E has no role there. For relay scans, collection, landing and docking, approach the marked target and press E once to arm the operation. The HUD shows the required distance and speed. The craft brakes for the final capture once it reaches the interaction zone, and the progress bar fills while it remains in range.
+
 ## Science and data
 
 The mineral investigation is informed by NASA's report on Curiosity's clay/sulfate transition observations:

@@ -27,7 +27,7 @@ Choose Earth, the Moon, Mars, Vesta, or Jupiter. Each has its own briefing, scie
 2. **Departure:** manually pilot through three departure gates above Earth.
 3. **Transfer:** steer through a debris corridor and respond to a solar event. Collision damage, repairs, and power priorities have real consequences.
 4. **Survey:** approach signal relays, brake, and hold position while scanning them. Three bearings reveal the missing station.
-5. **Approach:** reach a landing/capture zone with a low enough relative speed. Hold E for the final controlled approach.
+5. **Approach:** reach a landing/capture zone with a low enough relative speed. Press E near the target to arm the controlled approach.
 6. **Discovery:** drive a rover or fly a recovery vehicle to three sites. Collect samples and recover the final transmission. Choose whether to spend reserves on the complete archive.
 7. **Return:** dock at the recovery station and receive a science score, vehicle assessment, and mission rank. Export the flight log or replay with another design.
 
@@ -44,7 +44,7 @@ On a new Mars campaign, three intercepted relay fragments advance the story. The
 | Lateral thrusters / rover steering | A, D |
 | Altitude / rover forward and reverse | Up, Down |
 | Boost (consumes fuel; heat limits sustained boost) | Space |
-| Hold to scan, collect, land, or dock | E |
+| Press once to arm scanning, collection, landing, or docking | E |
 | Optional guidance: tracks target and brakes; you still operate instruments | G |
 | Chase, cockpit, or orbital camera | C |
 | Route power to engines / science / shields | 1, 2, 3 |
