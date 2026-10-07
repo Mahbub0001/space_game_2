@@ -1,5 +1,15 @@
 # Verification — Mission Forge v2
 
+## Survival & Environmental Hazards release — 2026-10-08
+
+- Production build successful; **28 simulation tests pass (100% pass rate)** with 0 failures across `tests/*.test.mjs`.
+- Verified dynamic atmospheric re-entry thermal modeling, velocity-dependent heat buildup, and re-entry plasma sheath visuals.
+- Verified Martian dust storm mechanics with real-time battery drain, howling wind noise modulation, and procedural storm fog.
+- Verified alert state machine escalation (nominal → warning → critical) on hull damage (<30%) and thermal stress (>70%), with procedural dual-tone klaxon alarms and red alert HUD pulsing vignettes.
+- Verified impact damage spark particles, screen glitch effects, and hazard warning banner captions.
+- Audio synthesis verified with graceful fallbacks when uninitialized or muted, and procedural frequency/gain modulation validated under mock AudioContext.
+- `tests/production-smoke.mjs`: verified production bundle launch, all bundled assets, keyboard flight controls, and dialog mute with 0 browser errors and 0 failed requests.
+
 ## Expanded Mars campaign — 2026-10-07
 
 - Production build successful; **22 simulation tests pass**, including all six route/repair combinations, science reward gates, selected-site coordinates and persistence.
