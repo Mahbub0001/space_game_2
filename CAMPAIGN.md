@@ -4,7 +4,7 @@ Start a **new Mars mission** for the expanded experience. Other destinations ret
 
 ## Implemented flow
 
-1. Assemble four modular subsystems in the 3D hangar. An animated service arm follows installation. The chosen model persists into flight.
+1. Assemble nine modular subsystems in the 3D hangar, choosing from 27 components. Propulsion, power, protection and science instruments are joined by communications, thermal control, attitude control, recovery bay and propellant tanks. An animated service arm follows installation. The chosen model persists into flight.
 2. Select Reserve First, Balanced Transfer or Rapid Response. These authored profiles change macro-burn fuel, housekeeping power and debris density.
 3. Fly the departure and transfer corridors. Three recovered relay fragments reveal the missing station's trail one transmission at a time. During transfer, isolate the storm-damaged science bus and switch backup power in a safe order. Alternatively, preserve power with 20% slower scanning.
 4. Download three survey packets. Tune and acquire two synthetic mineral-band guides. Compare three sites and commit a landing choice.
@@ -16,7 +16,7 @@ Start a **new Mars mission** for the expanded experience. Other destinations ret
 
 ## Controls and accessibility
 
-Tab/Shift+Tab and Enter operate interface controls. Keys 1–4 select hangar sockets. Native arrow keys adjust the wavelength slider. On the Mars surface, Z cycles the three evidence leads and X departs once the minimum evidence is aboard. The existing flight manual documents flight keys. All operations provide textual feedback; sound is optional. Mobile layouts stack operation cards and preserve access to actions through scrolling.
+Tab/Shift+Tab and Enter operate interface controls. Keys 1–9 select hangar sockets. Native arrow keys adjust the wavelength slider. On the Mars surface, Z cycles the three evidence leads and X departs once the minimum evidence is aboard. The existing flight manual documents flight keys. All operations provide textual feedback; sound is optional. Mobile layouts stack operation cards and preserve access to actions through scrolling.
 
 In the first two flight chapters, pass through the marked navigation gates; E has no role there. For relay scans, collection, landing and docking, approach the marked target and press E once to arm the operation. The HUD shows the required distance and speed. The craft brakes for the final capture once it reaches the interaction zone, and the progress bar fills while it remains in range.
 
@@ -38,7 +38,7 @@ Planning reserves exclude manual maneuvers, optional operations and recovery. Me
 
 ## Verification
 
-Run `npm test` for 30 simulation checks. With production preview at port 4174, run `node tests/browser-campaign.mjs` and `node tests/browser-assembly.mjs`.
+Run `npm test` for 34 simulation checks. With production preview at port 4174, run `node tests/browser-campaign.mjs` and `node tests/browser-assembly.mjs`.
 
 The campaign browser check uses actual interface/keyboard actions, optional guidance and an accelerated test clock. It completes all six chapters, circuit restoration, three relay clues, both spectral acquisitions, all three surface leads, interpretation, archive recovery and final docking. Production time remains unchanged. Simulation checks separately cover out-of-order leads and early departure with provisional science. Keyboard, removal/reinstallation, power-deficit gating, mobile layout and campaign checkpoint restoration are checked separately.
 

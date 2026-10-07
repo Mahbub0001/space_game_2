@@ -8,7 +8,7 @@ import '@fontsource/rajdhani/latin-700.css';
 import '@fontsource/ibm-plex-mono/latin-400.css';
 import '@fontsource/inter/latin-400.css';
 import './style.css';
-import {DESTINATIONS,SYSTEMS,STAGES,EVENTS,designStats,clamp} from './data.js';
+import {DESTINATIONS,SYSTEMS,STAGES,EVENTS,DEFAULT_LOADOUT,designStats,clamp} from './data.js';
 import {Simulation} from './simulation.js';
 import {SpaceWorld} from './world.js';
 import {FlightAudio} from './audio.js';
@@ -19,7 +19,7 @@ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const getSaved=(key,fallback=null)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
 const save=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{notify('Storage unavailable. This expedition can still be completed.','warning');}};
-let selected=2,loadout=[0,1,1,1],difficulty='explorer',sim=null,world,view='menu',dialogKind=null,restoreFocus=null,extraPaused=false;
+let selected=2,loadout=[...DEFAULT_LOADOUT],difficulty='explorer',sim=null,world,view='menu',dialogKind=null,restoreFocus=null,extraPaused=false;
 let lastJournal=getSaved('odyssey-journal',[]),records=getSaved('odyssey-records',{}),savedCheckpoint=getSaved('odyssey-checkpoint');
 const audio=new FlightAudio();let keys={},transcript='',typed=0,accumulator=0,lastFrame=performance.now(),lastHud=0,scanSound=0,hazardTipActive=false,reentryCommsSent=false;
 const settings=getSaved('odyssey-settings',{voice:true,quality:true,muted:false});audio.voice=settings.voice;audio.muted=settings.muted;
@@ -279,7 +279,7 @@ $('#assist-button').onclick=()=>action('assist');$('#camera-button').onclick=()=
 const keymap={KeyW:'forward',KeyS:'brake',KeyA:'left',KeyD:'right',ArrowLeft:'left',ArrowRight:'right',ArrowUp:'up',ArrowDown:'down',Space:'boost',KeyE:'interact'};
 document.addEventListener('keydown',e=>{
   if(e.code==='KeyM'&&!e.repeat&&!e.target.matches('input,select,textarea')){e.preventDefault();soundToggle();return;}
-  if(dialogKind==='design'&&/^Digit[1-4]$/.test(e.code)&&!e.target.matches('input,select,textarea')){e.preventDefault();const slot=Number(e.code.slice(-1))-1;assembly?.selectSlot(slot);$(`[data-slot="${slot}"]`)?.focus();return;}
+  if(dialogKind==='design'&&/^Digit[1-9]$/.test(e.code)&&!e.target.matches('input,select,textarea')){e.preventDefault();const slot=Number(e.code.slice(-1))-1;assembly?.selectSlot(slot);$(`[data-slot="${slot}"]`)?.focus();return;}
   if(e.code==='Tab'&&dialogKind){const buttons=[...$('#dialog').querySelectorAll('button:not(:disabled),select,a[href],summary,input')].filter(el=>el.getClientRects().length>0);const first=buttons[0],last=buttons.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}return;}
   if(e.code==='Escape'){e.preventDefault();if(dialogKind==='pause'){closeDialog();sim?.resume();}else if(['controls','journal','credits','design','planning'].includes(dialogKind)){closeDialog();if(sim?.mode==='paused')sim.resume();}else if(!dialogKind&&view==='flight')pauseMenu();return;}
   if(dialogKind){if(dialogKind==='event'&&['Digit1','Digit2'].includes(e.code)&&!e.repeat){e.preventDefault();$$('[data-effect]')[e.code==='Digit1'?0:1]?.click();}return;}

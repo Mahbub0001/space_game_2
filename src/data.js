@@ -21,8 +21,30 @@ export const SYSTEMS = [
   {id:'payload',label:'04 / SCIENCE PAYLOAD',icon:'⌬',choices:[
     {name:'Imaging spectrometer',description:'Fast remote scans and mineral identification.',cost:34,mass:3,scan:1.5,yield:1,tag:'REMOTE SENSING'},
     {name:'Radar + sample kit',description:'Balanced subsurface surveys and sample collection.',cost:52,mass:6,scan:1,yield:1.3,tag:'EXPLORER'},
-    {name:'Return laboratory',description:'Slower scans. Higher value from recovered material.',cost:82,mass:10,scan:.8,yield:1.6,tag:'DEEP SCIENCE'}]}
+    {name:'Return laboratory',description:'Slower scans. Higher value from recovered material.',cost:82,mass:10,scan:.8,yield:1.6,tag:'DEEP SCIENCE'}]},
+  {id:'communications',label:'05 / COMMUNICATIONS',icon:'⌁',choices:[
+    {name:'Patch antenna array',description:'Light radio package. Standard relay acquisition.',cost:8,mass:1,demand:.08,link:1,tag:'LIGHTWEIGHT'},
+    {name:'High-gain dish',description:'Larger aperture. Relay acquisition 12% faster.',cost:14,mass:1.5,demand:.12,link:1.12,tag:'DEEP SPACE'},
+    {name:'Dish + relay mast',description:'Redundant radio package. Relay acquisition 25% faster.',cost:22,mass:2,demand:.18,link:1.25,tag:'REDUNDANT'}]},
+  {id:'thermal',label:'06 / THERMAL CONTROL',icon:'≋',choices:[
+    {name:'Passive radiator fins',description:'Radiates waste heat. Standard cooling rate.',cost:8,mass:1.5,demand:.04,cooling:1,tag:'PASSIVE'},
+    {name:'Deployable radiator wings',description:'More radiator area. Cooling rate increased by 30%.',cost:14,mass:2,demand:.07,cooling:1.3,tag:'HIGH AREA'},
+    {name:'Pumped radiator loop',description:'Active circulation. Cooling rate increased by 60%.',cost:20,mass:3,demand:.16,cooling:1.6,tag:'ACTIVE COOLING'}]},
+  {id:'guidance',label:'07 / ATTITUDE CONTROL',icon:'⊕',choices:[
+    {name:'RCS thruster pack',description:'Baseline lateral control and attitude actuators.',cost:7,mass:.7,demand:.05,handling:1,tag:'RCS'},
+    {name:'Reaction wheels + RCS',description:'Fine pointing package. Lateral response improved by 15%.',cost:13,mass:1.2,demand:.09,handling:1.15,tag:'PRECISION'},
+    {name:'Redundant navigation suite',description:'Dual star trackers and actuators. Lateral response improved by 30%.',cost:20,mass:1.8,demand:.14,handling:1.3,tag:'REDUNDANT'}]},
+  {id:'recovery',label:'08 / RECOVERY BAY',icon:'▣',choices:[
+    {name:'Compact field vehicle',description:'Light rover/drone package. Standard recovered science yield.',cost:10,mass:2,demand:.03,recovery:1,tag:'SCOUT'},
+    {name:'Sample handling bay',description:'Adds a manipulator and sealed canisters. Recovery yield +10%.',cost:18,mass:3,demand:.07,recovery:1.1,tag:'SAMPLE RETURN'},
+    {name:'Protected archive vault',description:'Larger handling bay and record vault. Recovery yield +20%.',cost:26,mass:4,demand:.11,recovery:1.2,tag:'ARCHIVE'}]},
+  {id:'tanks',label:'09 / PROPELLANT STORAGE',icon:'◉',choices:[
+    {name:'Standard tank pair',description:'28 t propellant. Light storage structure.',cost:8,mass:2,demand:.02,fuelMass:28,tag:'STANDARD'},
+    {name:'Extended tank cluster',description:'34 t propellant. More reserve, more launch mass.',cost:16,mass:3,demand:.03,fuelMass:34,tag:'ENDURANCE'},
+    {name:'Long-range tank assembly',description:'40 t propellant. Highest reserve; watch the 85 t limit.',cost:24,mass:5,demand:.05,fuelMass:40,tag:'LONG RANGE'}]}
 ];
+export const DEFAULT_LOADOUT=[0,1,1,1,0,0,0,0,0];
+export function normalizeLoadout(loadout=DEFAULT_LOADOUT){return SYSTEMS.map((s,i)=>Number.isInteger(loadout[i])&&s.choices[loadout[i]]?loadout[i]:DEFAULT_LOADOUT[i]);}
 export const STAGES = [
   {title:'LEAVE THE BLUE BEHIND',short:'Departure',verb:'Fly through the departure gates',kind:'gates',color:'#77d9e9',chapter:'01',commander:'Flight Director Imani',message:'Odyssey, this is Houston. You are clear to depart. W for thrust, A and D to steer, arrow keys to change altitude. Follow the illuminated gates. Take us out.',tip:'W thrust · S brake · A/D left/right · ↑/↓ altitude. G toggles optional guidance.',fact:'Inertia: in space, you keep moving after the engine stops. Braking requires thrust in the opposite direction.'},
   {title:'THE SPACE BETWEEN',short:'Transfer',verb:'Navigate the debris corridor',kind:'gates',color:'#e5b876',chapter:'02',commander:'Flight Engineer Reyes',message:'We have particulate debris crossing the transfer corridor. Keep your eyes on the proximity radar. Shields reduce impact damage; boost gets you through faster but burns propellant.',tip:'SPACE boost · 1 engines · 2 science · 3 shields · R use a repair kit.',fact:'The distances and journey time are compressed for play. The ship is not traveling faster than light.'},
@@ -36,21 +58,22 @@ export const EVENTS = {
   recorder:{label:'ARCHIVE RECOVERED',title:'“Please, bring the science home.”',speaker:'LAST RECORDED MESSAGE',body:'The station survived the storm, but its transmitter did not. Its final message repeats one request: preserve the data. You can spend reserves recovering the full archive, or depart with the validated samples.',choices:[{label:'Recover the complete archive.',detail:'−12 power · +22 science · full record ending',effect:'archive'},{label:'Preserve the return margin.',detail:'+8 fuel · +8 science · essential record ending',effect:'return'}]}
 };
 export const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-export function designStats(loadout=[0,1,1,1], destination="earth") {
+export function designStats(loadout=DEFAULT_LOADOUT, destination="earth") {
+  loadout=normalizeLoadout(loadout);
   const parts=SYSTEMS.map((s,i)=>s.choices[loadout[i]??0]);
   const cost=parts.reduce((n,p)=>n+p.cost,60);
-  const dryMass=parts.reduce((n,p)=>n+p.mass,12), fuelMass=28;
+  const dryMass=parts.reduce((n,p)=>n+p.mass,12), fuelMass=parts[8].fuelMass;
   const deltaV=parts[0].isp*9.80665*Math.log((dryMass+fuelMass)/dryMass)/1000;
   const sunDistance={earth:1,moon:1,mars:1.52,asteroid:2.36,jupiter:5.2}[destination]||1;
   // Illustrative concept specifications; these are not flight hardware ratings.
   const thrustN=[200000,.35,280000][loadout[0]??0];
   const generatedKW=loadout[1]===0?18/(sunDistance**2):loadout[1]===1?2.4:20;
   const propulsionKW=loadout[0]===1?thrustN*parts[0].isp*9.80665/(2*.6*1000):.15;
-  const demandKW=.55+[.25,.45,.8][loadout[3]??0]+propulsionKW;
+  const demandKW=.55+[.25,.45,.8][loadout[3]??0]+propulsionKW+parts.slice(4).reduce((n,p)=>n+p.demand,0);
   const powerMargin=generatedKW-demandKW,issues=[];
   if(cost>320)issues.push('Reduce cost below $320M');
   if(dryMass+fuelMass>85)issues.push('Reduce wet mass below 85 t');
   if(powerMargin<0)issues.push('Power deficit at destination: change power or propulsion');
   const acceleration=thrustN/((dryMass+fuelMass)*1000),massFlow=thrustN/(parts[0].isp*9.80665),burnSeconds=fuelMass*1000/massFlow;
-  return {sunDistance,thrustN,generatedKW,demandKW,powerMargin,acceleration,massFlow,burnSeconds,issues,parts,cost,dryMass,mass:dryMass+fuelMass,deltaV,valid:issues.length===0,thrust:parts[0].thrust*(65/(dryMass+fuelMass)),efficiency:parts[0].efficiency,power:parts[1].capacity,armor:parts[2].armor,scan:parts[3].scan,yield:parts[3].yield};
+  return {sunDistance,thrustN,generatedKW,demandKW,powerMargin,acceleration,massFlow,burnSeconds,issues,parts,cost,dryMass,fuelMass,mass:dryMass+fuelMass,deltaV,valid:issues.length===0,thrust:parts[0].thrust*(65/(dryMass+fuelMass)),efficiency:parts[0].efficiency*28/fuelMass,power:parts[1].capacity,armor:parts[2].armor,scan:parts[3].scan,yield:parts[3].yield,link:parts[4].link,cooling:parts[5].cooling,handling:parts[6].handling,recovery:parts[7].recovery};
 }

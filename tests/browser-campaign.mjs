@@ -11,7 +11,7 @@ await page.addInitScript(()=>{
 try{
  await page.goto('http://127.0.0.1:4174');await page.locator('#loading').waitFor({state:'hidden'});
  await page.locator('#design-button').click();await expect(page.locator('#launch-button')).toBeDisabled();
- for(let i=0;i<4;i++){await page.locator(`[data-slot="${i}"]`).click();await page.locator(`[data-part="${[0,1,1,1][i]}"]`).click();}
+ for(let i=0;i<9;i++){await page.locator(`[data-slot="${i}"]`).click();await page.locator(`[data-part="${[0,1,1,1,0,0,0,0,0][i]}"]`).click();}
  await expect(page.locator('#launch-button')).toBeEnabled({timeout:15000});await page.screenshot({path:'previews/hangar-complete.png'});
  await page.locator('[data-hangar="explode"]').click();await page.waitForTimeout(500);await page.screenshot({path:'previews/hangar-exploded.png'});
  await page.locator('#launch-button').click();await page.locator('[data-plan="reserve"]').click();await page.screenshot({path:'previews/mission-planning.png'});await page.locator('#commit-plan').click();
@@ -28,7 +28,7 @@ try{
   }
   if(await page.locator('#ack-clue').isVisible()){await page.locator('#ack-clue').click();await page.keyboard.up('e');await page.keyboard.down('e');}
   if(await page.locator('#survey-confirm').isVisible()){
-   await page.locator('#band-tuner').focus();await page.keyboard.press('Home');for(let i=0;i<40;i++)await page.keyboard.press('ArrowRight');await page.locator('#acquire-band').click();
+   await page.locator('#band-tuner').focus();await page.keyboard.press('Home');for(let i=0;i<90;i++)await page.keyboard.press('ArrowRight');await page.locator('#acquire-band').click();
    await page.locator('#band-tuner').focus();for(let i=0;i<20;i++)await page.keyboard.press('ArrowRight');await page.locator('#acquire-band').click();
    await page.locator('[data-site="boundary"]').click();await expect(page.locator('#survey-confirm')).toBeEnabled();await page.screenshot({path:'previews/mineral-investigation.png'});await page.locator('#survey-confirm').click();
   }

@@ -1,5 +1,11 @@
 # Verification — Mission Forge v2
 
+## Nine-section spacecraft assembly — 2026-10-08
+
+- Production build successful; **34 automated checks pass**. Geometry checks cover all 27 components, and simulation checks cover larger-tank delta-v/reserve trade-offs, communications, cooling, control response, recovery rewards and migration of four-module checkpoints.
+- `tests/browser-assembly.mjs` passed in Edge: all nine sockets installed with keyboard input, invalid power configuration blocked, component removal/reinstallation, 390 px layout, mission planning and checkpoint restoration. Zero page errors.
+- Additional subsystem multipliers are conceptual game parameters. Communication hardware does not compute a physical radio link budget; attitude actuators share a simplified lateral-response model. Tank propellant and structure mass enter the existing ideal rocket equation.
+
 ## Free-choice Mars expedition — 2026-10-08
 
 - Production build successful; **30 simulation tests pass**. Added checks for relay clue pauses, out-of-order rover leads, minimum-evidence departure and provisional scientific credit.

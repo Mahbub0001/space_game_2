@@ -1,13 +1,13 @@
 import {flightPlan,SITES,SIGNAL_FRAGMENTS,resolveOperation} from './campaign.js';
-import {DESTINATIONS,STAGES,designStats,clamp} from './data.js';
+import {DESTINATIONS,STAGES,SYSTEMS,DEFAULT_LOADOUT,normalizeLoadout,designStats,clamp} from './data.js';
 
 export function seeded(seed=1287){return ()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};}
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z);
 const point=(x,y,z)=>({x,y,z});
 export class Simulation {
-  constructor({destination='mars',loadout=[0,1,1,1],difficulty='explorer',campaign=null,onEvent=()=>{}}={}) {
+  constructor({destination='mars',loadout=DEFAULT_LOADOUT,difficulty='explorer',campaign=null,onEvent=()=>{}}={}) {
     this.destination=DESTINATIONS.find(d=>d.id===destination)||DESTINATIONS[2];
-    this.loadout=[...loadout]; this.stats=designStats(loadout,this.destination.id); this.difficulty=difficulty; this.onEvent=onEvent;
+    this.loadout=normalizeLoadout(loadout); this.stats=designStats(this.loadout,this.destination.id); this.difficulty=difficulty; this.onEvent=onEvent;
     this.campaign=campaign?JSON.parse(JSON.stringify(campaign)):null;this.operation=null;
     if(this.campaign){this.campaign.clues??=[];this.campaign.evidence??=[];this.campaign.decisions??=[];this.campaign.completed??={};}
     this.stage=0; this.mode='briefing';this.time=0;this.stageTime=0;this.score=0;this.hull=100;this.fuel=100;
@@ -107,7 +107,7 @@ export class Simulation {
     this.setupStage();this.mode='briefing';this.emit('stage',{stage:this.stage});
   }
   completeTarget(){
-    const index=this.targetIndex,target=this.target;target.done=true;this.score+=this.stage<2?4:Math.round(10*this.stats.yield);
+    const index=this.targetIndex,target=this.target;target.done=true;this.score+=this.stage<2?4:Math.round(10*this.stats.yield*(this.stage===4?this.stats.recovery:1));
     this.scan=0;this.interactionQueued=false;
     if(this.campaign&&this.isSurface){
       const kinds=['mineral','context','recorder'];this.campaign.evidence.push({name:target.name,kind:kinds[index]});
@@ -137,7 +137,7 @@ export class Simulation {
     const beforeZ=this.position.z;const surface=this.isSurface;
     const boost=keys.boost&&this.fuel>0&&this.heat<98&&!surface;
     const thrust=this.stats.thrust*(this.route==='engine'?1.25:1)*(this.hull<25?.65:1);
-    this.heat=clamp(this.heat+(boost?24:-17)*dt,0,100);
+    this.heat=clamp(this.heat+(boost?24:-17*this.stats.cooling)*dt,0,100);
     if(surface){
       let drive=(keys.forward?1:0)-(keys.brake?1:0),turn=(keys.right?1:0)-(keys.left?1:0);
       if(this.assist){const desired=Math.atan2(t.x-this.position.x,-(t.z-this.position.z));let difference=((desired-this.heading+Math.PI*3)%(Math.PI*2))-Math.PI;turn=clamp(difference*2,-1,1);drive=this.range>17?1:0;}
@@ -167,8 +167,8 @@ export class Simulation {
         this.velocity.x*=Math.exp(-dt*8);this.velocity.y*=Math.exp(-dt*8);
       }
       if(!boost&&this.speedCommand>62)this.speedCommand-=18*dt;
-      this.velocity.x=(this.velocity.x+sx*27*thrust*dt)*Math.exp(-dt*1.7);
-      this.velocity.y=(this.velocity.y+sy*25*thrust*dt)*Math.exp(-dt*1.7);
+      this.velocity.x=(this.velocity.x+sx*27*thrust*this.stats.handling*dt)*Math.exp(-dt*1.7);
+      this.velocity.y=(this.velocity.y+sy*25*thrust*this.stats.handling*dt)*Math.exp(-dt*1.7);
       this.velocity.z=-this.speedCommand;
       if(forward||brake||boost||sx||sy)this.fuel=clamp(this.fuel-dt*this.stats.efficiency*(boost?1.05:.075),0,100);
     }
@@ -192,7 +192,7 @@ export class Simulation {
       const maxSpeed=surface?4:this.stage===5?8:this.stage===3?10:12;
       this.canInteract=range<maxRange&&this.speed<maxSpeed;
       if((keys.interact||this.interactionQueued)&&this.canInteract){
-        const scanRate=this.stage===2||this.stage===4?this.stats.scan:1;
+        const scanRate=this.stage===2?this.stats.scan*this.stats.link:this.stage===4?this.stats.scan:1;
         this.scan+=dt/(surface?3.4:4)*scanRate*(this.route==='science'?1.55:1);
         this.power=clamp(this.power-dt*.16,0,100);
         if(this.scan>=1)this.completeTarget();
@@ -255,7 +255,7 @@ export class Simulation {
   }
   serialize(){return {version:2,destination:this.destination.id,loadout:[...this.loadout],difficulty:this.difficulty,stage:this.stage,hull:this.hull,fuel:this.fuel,power:this.power,score:this.score,repairs:this.repairs,time:this.time,collisions:this.collisions,eventFlags:{...this.eventFlags},journal:[...this.journal],fullArchive:this.fullArchive,campaign:this.campaign?JSON.parse(JSON.stringify(this.campaign)):null};}
   static restore(saved,onEvent){
-    if(!saved||saved.version!==2||!Number.isInteger(saved.stage)||saved.stage<0||saved.stage>5||!Array.isArray(saved.loadout)||saved.loadout.length!==4||saved.loadout.some(x=>!Number.isInteger(x)||x<0||x>2))throw new Error('Invalid checkpoint');
+    if(!saved||saved.version!==2||!Number.isInteger(saved.stage)||saved.stage<0||saved.stage>5||!Array.isArray(saved.loadout)||![4,SYSTEMS.length].includes(saved.loadout.length)||saved.loadout.some(x=>!Number.isInteger(x)||x<0||x>2))throw new Error('Invalid checkpoint');
     const sim=new Simulation({...saved,onEvent});
     for(const key of ['stage','hull','fuel','power','score','repairs','time','collisions','fullArchive'])if(saved[key]!==undefined)sim[key]=saved[key];
     if(sim.campaign?.repair==='isolate')sim.stats.scan*=.8;

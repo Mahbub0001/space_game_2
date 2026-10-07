@@ -4,7 +4,7 @@ import {Simulation} from '../src/simulation.js';
 import {designStats,DESTINATIONS} from '../src/data.js';
 
 test('Mission design enforces mass and budget limits and uses rocket equation',()=>{
-  const nominal=designStats([0,1,1,1]);assert.equal(nominal.valid,true);assert.equal(nominal.mass,65);
+  const nominal=designStats([0,1,1,1]);assert.equal(nominal.valid,true);assert.ok(Math.abs(nominal.mass-72.2)<1e-9);
   assert.ok(nominal.deltaV>2&&nominal.deltaV<3);assert.equal(designStats([2,2,2,2]).valid,false);
 });
 test('Thrust, inertial coast, and counter-thrust change the actual vehicle velocity',()=>{
@@ -165,4 +165,3 @@ test('FlightAudio klaxon and procedural wind modulate parameters with mock Audio
   assert.strictEqual(audio.klaxonTimer, null);
   assert.strictEqual(audio.windGain.gain.value, 0);
 });
-
