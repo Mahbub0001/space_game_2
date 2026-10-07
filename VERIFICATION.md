@@ -1,5 +1,11 @@
 # Verification — Mission Forge v2
 
+## Free-choice Mars expedition — 2026-10-08
+
+- Production build successful; **30 simulation tests pass**. Added checks for relay clue pauses, out-of-order rover leads, minimum-evidence departure and provisional scientific credit.
+- `tests/browser-campaign.mjs` completed the six-chapter Mars mission from assembly through final Earth docking, including all three relay fragments, surface evidence collection and scientific debrief. Result: **236 science, 83% hull, 2 collisions, zero page errors**. It used optional guidance and an accelerated test clock; production gameplay speed was unchanged.
+- The browser run covered the full-evidence path. The early-return branch is covered by deterministic simulation checks, not a full browser playthrough. First-time player usability and device performance remain to be evaluated.
+
 ## Survival & Environmental Hazards release — 2026-10-08
 
 - Production build successful; **28 simulation tests pass (100% pass rate)** with 0 failures across `tests/*.test.mjs`.

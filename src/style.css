@@ -20,6 +20,30 @@
 
 #modal-layer:not([hidden])~#notifications{display:none}.operation-dialog .dialog-footer,.planning-dialog .dialog-footer{position:sticky;bottom:-34px;background:#0a1d29;padding:16px 0;margin-bottom:-10px;z-index:3;border-top:1px solid #456575}.operation-dialog input:focus-visible{outline:2px solid #bef6ed;outline-offset:5px}.operation-dialog button:focus-visible,.planning-dialog button:focus-visible{outline:2px solid #d7ffff;outline-offset:3px}@media(max-width:740px){.operation-dialog .dialog-footer,.planning-dialog .dialog-footer{bottom:-22px;flex-wrap:wrap;gap:12px}}
 
+/* Keep the assembly decision visible while the workbench scrolls. */
+.dialog.assembly-dialog{display:flex;flex-direction:column;height:min(96vh,940px);overflow:hidden}
+.assembly-dialog #assembly-root{display:flex;flex-direction:column;flex:1;min-height:0}
+.assembly-dialog .hangar-layout{flex:1;min-height:0;overflow-y:auto;scrollbar-color:#477887 #0b202c;padding-right:5px}
+.assembly-dialog .hangar-footer{flex:none;min-height:66px;margin-top:0!important;padding:12px 0 0!important;background:#091c27;border-top:1px solid #426779;z-index:2}
+.assembly-dialog .hangar-slots .socket-next:not([aria-pressed=true]){border-color:#619eaa;background:#102c37}
+.assembly-dialog .hangar-slots .socket-next small{color:#a8e3dc}
+.assembly-dialog .hangar-overlay p{color:#c1e9e7}
+@media(max-width:700px){.modal-layer:has(.assembly-dialog){padding:12px}.dialog.assembly-dialog{box-sizing:border-box;width:calc(100vw - 24px);max-width:calc(100vw - 24px);height:min(96dvh,940px)}.assembly-dialog .hangar-layout{padding-right:0}.assembly-dialog .hangar-footer{min-height:70px}.assembly-dialog .hangar-footer .primary-button{min-width:168px}}
+
+/* Surface expedition: selectable leads and an explicit return decision. */
+.rover-target{width:100%;display:flex;align-items:center;gap:7px;text-align:left;border:1px solid #527e8866;background:#0a2430;padding:7px 6px;color:#adced3;font:9px var(--mono);line-height:1.4}
+.rover-target>span{color:#8ddfd4;min-width:20px}
+.rover-target[aria-pressed=true]{border-color:#9be6dc;background:#13414b;color:#effffb;box-shadow:inset 2px 0 #a5efe1}
+.rover-target:disabled{opacity:.58;cursor:default}
+.rover-depart{width:100%;margin-top:10px;border:1px solid #94e0d4;background:#18444a;padding:10px 8px;color:#c9fff1;font:10px var(--mono);letter-spacing:.02em}
+.rover-depart:disabled{border-color:#49616b;color:#6e8d97;background:#10252e;font-size:8px}
+.rover-depart kbd{font:9px var(--mono);border:1px solid #a7e6d677;padding:1px 3px}
+@media(max-width:800px){.rover-target{font-size:7px;padding:5px 3px;gap:3px}.rover-target>span{min-width:13px}.rover-depart{font-size:7px;padding:8px 3px}.rover-depart:disabled{font-size:6px}}
+.evidence-grid .missing-evidence{border-color:#b8836859;background:#241c1e}
+.evidence-grid .missing-evidence span{color:#e9b28f}
+#rover-map{display:block;width:100%;height:100px;margin:9px 0 3px;border:1px solid #477280;cursor:crosshair}
+@media(max-width:800px){#rover-map{height:76px}}
+
 /* Red Alert HUD */
 .hud-alert-critical .hud-frame {
   filter: drop-shadow(0 0 12px rgba(255, 60, 60, 0.85));

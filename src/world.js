@@ -164,6 +164,12 @@ export class SpaceWorld {
     }
     if(!this.plasmaCone)this.attachPlasmaCone();
     if(this.plasmaCone)this.plasmaCone.visible=false;
+    if(!this.ship.userData.faultBeacon){
+      const beacon=new THREE.Group();beacon.position.set(0,2.6,-1);
+      beacon.add(new THREE.Mesh(new THREE.SphereGeometry(.28,12,8),new THREE.MeshBasicMaterial({color:0xff735e})));
+      beacon.add(new THREE.PointLight(0xff513a,5,9));beacon.visible=false;
+      this.ship.add(beacon);this.ship.userData.faultBeacon=beacon;
+    }
     this.menu=false;this.clearStage();this.stageGroup.visible=true;this.orbits.visible=false;this.ship.visible=!sim.isSurface;this.rover.visible=sim.isSurface;this.scene.fog=null;this.planet.visible=true;this.atmosphere.visible=true;
     const surface=(sim.stage===3||sim.stage===4)&&sim.destination.surface;
     this.surfaceScene=surface;this.terrainBase=sim.stage===3?-48:0;
@@ -213,6 +219,7 @@ export class SpaceWorld {
     }else if(sim){
       const p=sim.position,surface=sim.isSurface;
       this.ship.position.set(p.x,p.y,p.z);this.ship.rotation.set(-sim.velocity.y*.007,-sim.velocity.x*.012,-sim.velocity.x*.025);
+      if(this.ship.userData.faultBeacon)this.ship.userData.faultBeacon.visible=sim.stage===1&&!!sim.eventFlags.flare&&!sim.campaign?.completed?.repair&&Math.sin(t*12)>.1;
       if(surface){this.rover.position.set(p.x,groundHeight(p.x,p.z),p.z);this.rover.rotation.y=-sim.heading;this.rover.rotation.z=Math.sin(t*12)*Math.min(sim.speed*.0015,.025);if(sim.mode==='flight')this.rover.userData.wheels.forEach(w=>w.rotateY(sim.speed*dt/.87));}
       if(this.surfaceScene){this.sun.position.set(p.x-100,160,p.z+80);this.sun.target.position.set(p.x,0,p.z);if(sim.stage===3&&sim.scan>0&&sim.target){this.ship.position.lerp(V(sim.target.x,sim.target.y-8,sim.target.z),sim.scan);}}
       this.ship.visible=!surface&&this.cameraMode!==1;this.rover.visible=surface;
@@ -278,7 +285,7 @@ export class SpaceWorld {
       else if(sim.stage===5){this.planet.position.set(-550,-830,-1800);this.planet.scale.setScalar(920);}
       else{this.planet.position.set(350,-180,-1850);this.planet.scale.setScalar(790);}
       this.atmosphere.position.copy(this.planet.position);this.atmosphere.scale.copy(this.planet.scale);
-      this.targets.forEach((group,i)=>{group.visible=i>=sim.targetIndex;const mark=group.userData.mark;if(mark){if(!surface)mark.rotation.z=t*.1;mark.material.opacity=i===sim.targetIndex?.85:.22;mark.material.color.set(i===sim.targetIndex?(sim.canInteract?0x8cffcd:CYAN):0x426270);}});
+      this.targets.forEach((group,i)=>{group.visible=!sim.targets[i]?.done;const mark=group.userData.mark;if(mark){if(!surface)mark.rotation.z=t*.1;mark.material.opacity=i===sim.targetIndex?.85:.32;mark.material.color.set(i===sim.targetIndex?(sim.canInteract?0x8cffcd:CYAN):0x719bb0);}});
       if(!surface)this.debris.forEach((rock,i)=>{rock.rotation.x+=dt*sim.hazards[i].spin;rock.rotation.y+=dt*.05;});
       this.scanWave.position.copy(surface?this.rover.position:this.ship.position);if(sim.pulse>0){this.scanWave.visible=true;this.scanWave.scale.setScalar((4-sim.pulse)*48);this.scanWave.material.opacity=sim.pulse/12;}else this.scanWave.visible=false;
     }

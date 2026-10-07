@@ -1,4 +1,4 @@
-import {makeCampaign,flightPlan,SITES,resolveOperation} from './campaign.js';
+import {flightPlan,SITES,SIGNAL_FRAGMENTS,resolveOperation} from './campaign.js';
 import {DESTINATIONS,STAGES,designStats,clamp} from './data.js';
 
 export function seeded(seed=1287){return ()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};}
@@ -9,6 +9,7 @@ export class Simulation {
     this.destination=DESTINATIONS.find(d=>d.id===destination)||DESTINATIONS[2];
     this.loadout=[...loadout]; this.stats=designStats(loadout,this.destination.id); this.difficulty=difficulty; this.onEvent=onEvent;
     this.campaign=campaign?JSON.parse(JSON.stringify(campaign)):null;this.operation=null;
+    if(this.campaign){this.campaign.clues??=[];this.campaign.evidence??=[];this.campaign.decisions??=[];this.campaign.completed??={};}
     this.stage=0; this.mode='briefing';this.time=0;this.stageTime=0;this.score=0;this.hull=100;this.fuel=100;
     this.power=100;this.repairs=2;this.route='balanced';this.assist=false;this.eventFlags={};this.journal=[];this.collisions=0;
     this.scan=0;this.targetIndex=0;this.heat=0;this.immunity=0;this.pulse=0;this.fullArchive=false;
@@ -20,7 +21,8 @@ export class Simulation {
   get target(){return this.targets[this.targetIndex];}
   get range(){return this.target?distance(this.position,this.target):0;}
   get speed(){return Math.hypot(this.velocity.x,this.velocity.y,this.velocity.z);}
-  get missionProgress(){return (this.stage+this.targetIndex/Math.max(1,this.targets.length))/6;}
+  get missionProgress(){return (this.stage+Math.max(0,this.targetIndex)/Math.max(1,this.targets.length))/6;}
+  get canDepartSurface(){return !!(this.campaign&&this.isSurface&&this.targets[2]?.done&&(this.targets[0]?.done||this.targets[1]?.done));}
   setupStage(){
     this.stageTime=0;this.targetIndex=0;this.scan=0;this.canInteract=false;this.speedCommand=0;this.heat=0;this.heading=0;this.stranded=0;this.throttle=0;
     this.reentryIntensity=0;this.stormActive=false;this.stormIntensity=0;
@@ -31,7 +33,7 @@ export class Simulation {
     if(this.stage===1) this.targets=[[-28,25,-240],[32,-8,-570],[0,15,-940]].map((p,i)=>make(p,i,['DEBRIS CORRIDOR A','DEBRIS CORRIDOR B','TRANSFER EXIT'][i]));
     if(this.stage===2) this.targets=[[-28,14,-230],[40,30,-490],[-12,-5,-780]].map((p,i)=>make(p,i,['RELAY ALPHA','RELAY BRAVO','SOURCE TRIANGULATION'][i]));
     if(this.stage===3) this.targets=[make([0,-10,-540],0,this.destination.surface?'LANDING ZONE / LZ-01':'PROBE CAPTURE ZONE')];
-    if(this.stage===4) this.targets=(this.isSurface?[[-45,0,-75],[50,0,-170],[-10,0,-295]]:[[-35,15,-190],[35,-10,-420],[0,5,-650]]).map((p,i)=>make(p,i,['MINERAL SURVEY','CONTEXT SAMPLE','STATION RECORDER'][i]));
+    if(this.stage===4) this.targets=(this.isSurface&&this.campaign?[[-45,0,-75],[130,0,-185],[-70,0,-265]]:this.isSurface?[[-45,0,-75],[50,0,-170],[-10,0,-295]]:[[-35,15,-190],[35,-10,-420],[0,5,-650]]).map((p,i)=>make(p,i,['MINERAL SURVEY','CONTEXT SAMPLE','STATION RECORDER'][i]));
     if(this.stage===5) this.targets=[make([0,8,-610],0,'KEPLER RECOVERY STATION')];
     if(this.campaign?.site&&this.stage===4&&this.isSurface){const site=SITES.find(s=>s.id===this.campaign.site);if(site){this.targets[0]={...this.targets[0],x:site.x,z:site.z,name:site.name+' / MINERAL CORE'};this.targets[1].name='LAYER CONTEXT / CAMERA MOSAIC';}}
     this.hazards=[];const random=seeded(2801+this.stage*37+this.destination.difficulty);
@@ -47,6 +49,20 @@ export class Simulation {
     this.checkpoint=this.serialize();
   }
   resolveOperation(kind,value){return resolveOperation(this,kind,value);}
+  acknowledgeClue(){
+    if(this.mode!=='clue'||this.stage!==2||!this.campaign)return false;
+    this.mode='flight';
+    if(this.targetIndex>=this.targets.length&&!this.campaign.completed.survey){this.operation='survey';this.mode='operation';this.emit('operation',{kind:'survey'});}
+    return true;
+  }
+  selectSurfaceTarget(index){
+    if(this.mode!=='flight'||!this.campaign||!this.isSurface||!Number.isInteger(index)||index<0||index>=this.targets.length||this.targets[index].done)return false;
+    this.targetIndex=index;this.scan=0;this.canInteract=false;this.emit('selection',{index,name:this.target.name});return true;
+  }
+  departSurface(){
+    if(this.mode!=='flight'||!this.canDepartSurface||this.campaign.completed.analysis)return false;
+    this.operation='analysis';this.mode='operation';this.emit('operation',{kind:'analysis'});return true;
+  }
   begin(){if(this.mode==='briefing'){this.mode='flight';this.emit('begin');}}
   setRoute(route){this.route=route;this.emit('route',{route});}
   toggleAssist(){this.assist=!this.assist;this.emit('assist',{active:this.assist});}
@@ -85,11 +101,21 @@ export class Simulation {
     this.setupStage();this.mode='briefing';this.emit('stage',{stage:this.stage});
   }
   completeTarget(){
-    const target=this.target;target.done=true;this.score+=this.stage<2?4:Math.round(10*this.stats.yield);
-    this.scan=0;this.targetIndex++;this.emit('target',{name:target.name});
-    if(this.stage===2)this.log(target.name,['Carrier isolated. Signal strength measured at a known position.','Second bearing acquired. The intersection constrains the source.','Third bearing confirms the lost station. Landing coordinates resolved.'][this.targetIndex-1]);
-    if(this.stage===4)this.log(target.name,['Mineral spectrum and sample position recorded.','Context documented. Sample sealed for later analysis.',this.destination.discovery][this.targetIndex-1]);
-    if(this.campaign&&this.stage===4)this.campaign.evidence.push({name:target.name,kind:['mineral','context','recorder'][this.targetIndex-1]});
+    const index=this.targetIndex,target=this.target;target.done=true;this.score+=this.stage<2?4:Math.round(10*this.stats.yield);
+    this.scan=0;
+    if(this.campaign&&this.isSurface){
+      const kinds=['mineral','context','recorder'];this.campaign.evidence.push({name:target.name,kind:kinds[index]});
+      this.log(target.name,['Mineral core sealed with its collection location.','Layer context recorded in a camera mosaic.','The field vehicle held the station crew’s final record.'][index]);
+      this.targetIndex=this.targets.findIndex(t=>!t.done);this.emit('target',{name:target.name});
+      if(this.canDepartSurface&&!this.campaign.completed.ready){this.campaign.completed.ready=true;this.emit('expeditionReady');}
+      return;
+    }
+    this.targetIndex++;this.emit('target',{name:target.name});
+    if(this.stage===2){
+      if(this.campaign){const clue=SIGNAL_FRAGMENTS[index];this.campaign.clues.push({label:clue.label,finding:clue.finding});this.log(clue.label,clue.finding);this.mode='clue';this.emit('clue',{index,clue});return;}
+      this.log(target.name,['Carrier isolated. Signal strength measured at a known position.','Second bearing acquired. The intersection constrains the source.','Third bearing confirms the lost station. Landing coordinates resolved.'][index]);
+    }
+    if(this.stage===4)this.log(target.name,['Mineral spectrum and sample position recorded.','Context documented. Sample sealed for later analysis.',this.destination.discovery][index]);
     if(this.targetIndex>=this.targets.length){
       if(this.campaign&&this.stage===2&&!this.campaign.completed.survey){this.operation='survey';this.mode='operation';this.emit('operation',{kind:'survey'});return;}
       if(this.campaign&&this.stage===4&&!this.campaign.completed.analysis){this.operation='analysis';this.mode='operation';this.emit('operation',{kind:'analysis'});return;}

@@ -5,13 +5,18 @@ export const FLIGHT_PLANS=[
   {id:'rapid',name:'RAPID RESPONSE',days:168,burn:1.18,housekeeping:.9,hazards:1.3,description:'Reach the station sooner, but spend more propellant and cross a denser debris corridor.'}
 ];
 export const SCIENCE_SOURCE='https://www.nasa.gov/missions/mars-science-laboratory/curiosity-rover/cracks-in-ancient-martian-mud-surprise-nasas-curiosity-rover-team/';
+export const SIGNAL_FRAGMENTS=[
+  {label:'PACKET 01 / POWER TELEMETRY',speaker:'REYES · FLIGHT ENGINEER',message:'The station beacon is running from an emergency cell. Its primary transmitter went silent during the radiation event. Someone kept the backup alive long enough to send a location.',finding:'The signal is a timed rescue beacon, not a repeating natural source.'},
+  {label:'PACKET 02 / ORBITAL SURVEY',speaker:'SEN · SCIENCE OFFICER',message:'Two mineral signatures appear in neighboring layers. Clay-bearing material and sulfate-rich rock can record different water-related conditions. The best landing site may be the boundary between them.',finding:'The terrain survey identifies a mineral transition worth investigating.'},
+  {label:'PACKET 03 / CREW RECORD',speaker:'IMANI · FLIGHT DIRECTOR',message:'The last intact message says the station team moved its recorder to the field vehicle. The beacon marks their work, not a safe landing site. Find the record and bring its evidence home.',finding:'The station recorder is on the surface; recovery remains the central objective.'}
+];
 export const SITES=[
   {id:'basin',name:'ANCIENT BASIN',clay:78,sulfate:19,slope:4,power:3,yield:8,x:-45,z:-75,description:'Strong clay signature. Accessible terrain; good evidence of water-altered minerals.'},
   {id:'boundary',name:'LAYER BOUNDARY',clay:56,sulfate:61,slope:11,power:7,yield:18,x:68,z:-110,description:'Both mineral groups near a layered contact. Best opportunity to investigate environmental change.'},
   {id:'ridge',name:'SALT RIDGE',clay:14,sulfate:86,slope:18,power:11,yield:11,x:-95,z:-150,description:'Strong sulfate signature. Rough terrain and a longer traverse; useful drying-environment context.'}
 ];
 export function makeCampaign(plan='balanced'){
-  return {plan:FLIGHT_PLANS.some(p=>p.id===plan)?plan:'balanced',site:null,repair:null,conclusion:null,evidence:[],decisions:[],completed:{}};
+  return {plan:FLIGHT_PLANS.some(p=>p.id===plan)?plan:'balanced',site:null,repair:null,conclusion:null,confidence:null,clues:[],evidence:[],decisions:[],completed:{}};
 }
 export function flightPlan(campaign){return FLIGHT_PLANS.find(p=>p.id===campaign?.plan)||FLIGHT_PLANS[1];}
 export function projectedReserves(loadoutStats,plan){return {fuel:100-55*loadoutStats.efficiency*plan.burn,power:100-34*(110/loadoutStats.power)*plan.housekeeping};}
@@ -31,8 +36,12 @@ export function resolveOperation(sim,kind,value){
   }
   if(kind==='analysis'){
     if(!['water','life','ocean'].includes(value))return false;
-    c.conclusion=value;const valid=value==='water';sim.score+=valid?20:4;
-    recordDecision(sim,'Scientific interpretation',valid?'Evidence supports water-related mineral alteration and changing conditions. It does not establish life or the size of an ancient water body.':'Initial claim exceeded the evidence. Science review retained the observations and corrected the claim to water-related mineral alteration.');
+    c.conclusion=value;
+    const kinds=new Set(c.evidence.map(e=>e.kind));
+    const complete=kinds.has('mineral')&&kinds.has('context');
+    c.confidence=value==='water'?(complete?'supported':'provisional'):'unsupported';
+    sim.score+=c.confidence==='supported'?20:c.confidence==='provisional'?9:4;
+    recordDecision(sim,'Scientific interpretation',c.confidence==='supported'?'Mineral sample and surrounding layers support water-related alteration and changing conditions. They do not establish life.':c.confidence==='provisional'?'A water-related interpretation is plausible, but the missing mineral or geological-context record limits confidence. No claim of life is supported.':'The claim exceeded the collected evidence. Science review retained the observations and marked the interpretation unsupported.');
   }
   c.completed[kind]=true;sim.operation=null;sim.mode='flight';sim.emit('operationResolved',{kind,value});
   if(kind==='survey')sim.finishStage();

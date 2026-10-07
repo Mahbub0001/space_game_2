@@ -54,7 +54,7 @@ function buildCards(){
 function designDialog(){
   assembly?.dispose();assembly=null;
   const d=DESTINATIONS[selected];
-  showDialog('design',`${header('MISSION DESIGN / '+d.name,'BUILD YOUR ODYSSEY.',true)}<div id="assembly-root"></div>`,true);
+  showDialog('design',`${header('MISSION FORGE / '+d.name,'BUILD THE ODYSSEY 07.',true)}<div id="assembly-root"></div>`,true);
   $('#dialog').classList.add('assembly-dialog');
   assembly=new AssemblyHangar($('#assembly-root'),loadout,d,value=>{loadout=value;},()=>audio.cue('success'));
   $('#difficulty-select').value=difficulty;
@@ -89,7 +89,7 @@ function campaignBriefing(stage){
   if(sim.stage===0)stage.message='Ares Station has been silent for nineteen days. You built this vehicle; now fly it. Hold W to accelerate, release to coast, and use S to brake. Follow the three departure gates. G enables optional guidance. Your transfer plan is '+flightPlan(sim.campaign).name.toLowerCase()+'.';
   if(sim.stage===2)stage.message='The relays hold mineral surveys of the terrain around Ares. Recover all three packets, then use the instrument console to compare candidate landing sites. Your choice determines the rover traverse.';
   if(sim.stage===3)stage.message='Approaching '+site+'. Watch lateral offset and relative speed on the approach guide. Brake below 10 meters per second, then hold E inside the capture corridor. The auxiliary landing system handles final descent.';
-  if(sim.stage===4)stage.message='The rover is deployed near '+site+'. Collect a mineral core, document its geological context, and retrieve the recorder. Then submit a scientific interpretation. Interesting rocks alone cannot establish that life existed.';
+  if(sim.stage===4)stage.message='The rover is deployed near '+site+'. Select any visible site from the objective panel or press Z to cycle. Recover the station recorder and at least one scientific record. You may then press X to leave, or explore farther to strengthen the final conclusion. A dust storm may make the longer journey costly.';
   return stage;
 }
 function showBriefing(){
@@ -101,16 +101,38 @@ function buildFlightHud(){
   $('#resource-bars').innerHTML=[['hull','HULL INTEGRITY','#a0dbd7'],['fuel','PROPELLANT','#e4bb82'],['power','POWER RESERVE','#87bedb']].map(([key,name,color])=>`<div class="resource-row" id="resource-${key}" style="--bar-color:${color}"><div><span>${name}</span><b><span id="value-${key}">100</span><small>%</small></b></div><span class="resource-track"><i id="bar-${key}" style="width:100%"></i></span></div>`).join('');
   $('#resource-bars').insertAdjacentHTML('beforeend','<div class="resource-row" style="--bar-color:#a8abdf"><div><span>COMMS LINK</span><b><span id="value-comms">82</span><small>%</small></b></div><span class="resource-track"><i id="bar-comms" style="width:82%"></i></span></div>');
   $('#flight-progress').innerHTML=STAGES.map((s,i)=>`<span class="${i===sim.stage?'active':i<sim.stage?'done':''}"><b>0${i+1}</b>${s.short.toUpperCase()}</span>`).join('');
-  $('#flight-tip').innerHTML=sim.isSurface?'DRIVE <kbd>W</kbd><kbd>S</kbd> &nbsp; STEER <kbd>A</kbd><kbd>D</kbd> &nbsp; STOP & COLLECT <kbd>E</kbd>':'THRUST <kbd>W</kbd> &nbsp; BRAKE <kbd>S</kbd> &nbsp; STEER <kbd>A</kbd><kbd>D</kbd> &nbsp; ALTITUDE <kbd>↑</kbd><kbd>↓</kbd>';
+  $('#flight-tip').innerHTML=sim.isSurface&&sim.campaign?'DRIVE <kbd>W</kbd><kbd>S</kbd> · STEER <kbd>A</kbd><kbd>D</kbd> · CYCLE SITE <kbd>Z</kbd> · COLLECT <kbd>E</kbd> · DEPART <kbd>X</kbd>':sim.isSurface?'DRIVE <kbd>W</kbd><kbd>S</kbd> &nbsp; STEER <kbd>A</kbd><kbd>D</kbd> &nbsp; STOP & COLLECT <kbd>E</kbd>':'THRUST <kbd>W</kbd> &nbsp; BRAKE <kbd>S</kbd> &nbsp; STEER <kbd>A</kbd><kbd>D</kbd> &nbsp; ALTITUDE <kbd>↑</kbd><kbd>↓</kbd>';
   $('#bottom-context').textContent=sim.isSurface?'SURFACE OPERATIONS · TIME & DISTANCE SCALED':'FLIGHT OPERATIONS · TIME & DISTANCE SCALED';updateObjectives();updateHud();
 }
-function updateObjectives(){if(!sim)return;$('#objective-list').innerHTML=sim.targets.map((t,i)=>`<li class="${i<sim.targetIndex?'done':i===sim.targetIndex?'active':''}">${t.name}</li>`).join('');$('#objective-fraction').textContent=`${String(Math.min(sim.targetIndex+1,sim.targets.length)).padStart(2,'0')} / ${String(sim.targets.length).padStart(2,'0')}`;}
+function updateObjectives(){
+  if(!sim)return;
+  const freeRover=sim.isSurface&&!!sim.campaign;
+  $('#objective-list').innerHTML=sim.targets.map((t,i)=>freeRover?`<li class="${t.done?'done':i===sim.targetIndex?'active':''}"><button class="rover-target" data-rover-target="${i}" aria-pressed="${i===sim.targetIndex&&!t.done}" ${t.done?'disabled':''}><span>${t.done?'✓':'0'+(i+1)}</span>${t.name}</button></li>`:`<li class="${i<sim.targetIndex?'done':i===sim.targetIndex?'active':''}">${t.name}</li>`).join('');
+  $('#objective-fraction').textContent=`${String(freeRover?sim.targets.filter(t=>t.done).length:Math.min(sim.targetIndex+1,sim.targets.length)).padStart(2,'0')} / ${String(sim.targets.length).padStart(2,'0')}`;
+  if(freeRover&&!$('#rover-map')){
+    $('#objective-list').insertAdjacentHTML('afterend','<canvas id="rover-map" width="190" height="100" aria-label="Surface map showing the rover and three selectable evidence sites"></canvas>');
+    $('#rover-map').onclick=e=>{const box=e.currentTarget.getBoundingClientRect(),x=(e.clientX-box.left)*190/box.width,y=(e.clientY-box.top)*100/box.height;let nearest=-1,distance=Infinity;sim.targets.forEach((t,i)=>{if(t.done)return;const p=roverMapPoint(t),d=Math.hypot(x-p.x,y-p.y);if(d<distance){distance=d;nearest=i;}});if(distance<17)sim.selectSurfaceTarget(nearest);};
+  }
+  if(!freeRover)$('#rover-map')?.remove();
+  $('#rover-depart')?.remove();
+  if(freeRover){$('#objective-list').insertAdjacentHTML('afterend',`<button id="rover-depart" class="rover-depart" ${sim.canDepartSurface?'':'disabled'}>${sim.canDepartSurface?'DEPART WITH EVIDENCE <kbd>X</kbd>':'RECOVER RECORDER + ONE RECORD TO DEPART'}</button>`);$('#objective-main').textContent='Choose your traverse. More evidence strengthens the conclusion.';}
+}
+function roverMapPoint(point){return {x:10+(point.x+155)/310*170,y:10+(65-point.z)/390*80};}
+function drawRoverMap(){
+  const canvas=$('#rover-map');if(!canvas||!sim?.isSurface)return;const c=canvas.getContext('2d');c.clearRect(0,0,190,100);c.fillStyle='#0a202b';c.fillRect(0,0,190,100);c.strokeStyle='#305666';c.lineWidth=.7;
+  for(let x=10;x<190;x+=25){c.beginPath();c.moveTo(x,0);c.lineTo(x,100);c.stroke();}for(let y=10;y<100;y+=25){c.beginPath();c.moveTo(0,y);c.lineTo(190,y);c.stroke();}
+  const rover=roverMapPoint(sim.position);if(sim.target){const goal=roverMapPoint(sim.target);c.strokeStyle='#8ddbdc';c.setLineDash([3,4]);c.beginPath();c.moveTo(rover.x,rover.y);c.lineTo(goal.x,goal.y);c.stroke();c.setLineDash([]);}
+  sim.targets.forEach((t,i)=>{const p=roverMapPoint(t);c.fillStyle=t.done?'#689a7e':i===sim.targetIndex?'#b3fff1':'#d6ad7c';c.beginPath();c.arc(p.x,p.y,i===sim.targetIndex?5:4,0,Math.PI*2);c.fill();c.font='9px monospace';c.fillText(String(i+1),p.x+7,p.y+3);});c.fillStyle='#e4faff';c.beginPath();c.arc(rover.x,rover.y,3,0,Math.PI*2);c.fill();
+}
 function communicate(speaker,message,speak=true){transcript=message;typed=0;$('#comm-speaker').textContent=speaker.toUpperCase();$('#comm-state').textContent='INCOMING TRANSMISSION';if(speak)audio.speak(message);}
 function handleEvent(event){
   if(event.type==='operation')operationDialog(event.kind);
   if(event.type==='operationResolved'){audio.cue('success');notify('DECISION LOGGED · YOUR MISSION HAS CHANGED');}
   if(event.type==='begin'){const s=stageInfo();communicate(s.commander,s.message);audio.cue('success');}
   if(event.type==='target'){audio.cue('success');notify('✓ '+event.name+' COMPLETE');updateObjectives();}
+  if(event.type==='selection'){audio.cue('click');updateObjectives();communicate('Rover navigation','New traverse selected: '+event.name+'. Watch the marker and preserve your battery reserve.',false);}
+  if(event.type==='expeditionReady'){audio.cue('success');updateObjectives();communicate('Science Officer Sen','The recorder and a science record are aboard. We can depart now. A second field record would make the environmental interpretation stronger.');notify('RETURN OPTION UNLOCKED · PRESS X OR KEEP EXPLORING');}
+  if(event.type==='clue'){keys={};audio.cue('scan');showDialog('clue',`${header(event.clue.label,'A PIECE OF THE SIGNAL.')}<p class="eyebrow">${event.clue.speaker}</p><p class="dialog-lead">${event.clue.message}</p><div class="briefing-fact"><span>⌬</span><p><b>MISSION LOG UPDATED</b><br>${event.clue.finding}</p></div><div class="dialog-footer"><span>FRAGMENT ${event.index+1} / 3 RECOVERED</span><button class="primary-button" id="ack-clue"><span>RETURN TO THE CONTROLS</span><b>↗</b></button></div>`);}
   if(event.type==='impact'){
     audio.cue('impact');world.impact();const flash=$('#impact-flash');flash.classList.remove('flash');void flash.offsetWidth;flash.classList.add('flash');
     const worldEl=$('#world');worldEl.classList.remove('screen-glitch');void worldEl.offsetWidth;worldEl.classList.add('screen-glitch');setTimeout(()=>worldEl.classList.remove('screen-glitch'),300);
@@ -188,6 +210,7 @@ function updateHud(){
   $('#interact-label').textContent=sim.canInteract?(sim.stage===5?'HOLD TO DOCK':sim.stage===3?'HOLD TO '+(sim.destination.surface?'LAND':'CAPTURE'):sim.isSurface?'HOLD TO COLLECT':'HOLD TO SCAN'):(sim.range>(sim.isSurface?24:sim.stage===2||sim.stage===4?65:35)?'MOVE CLOSER':'BRAKE TO STABILIZE');
   $('#scan-progress').style.width=clamp(sim.scan,0,1)*100+'%';
   if(sim.target){$('#marker-label').textContent=sim.target.name;$('#marker-range').textContent=Math.round(sim.range)+' M';$('#target-marker').classList.toggle('ready',!!sim.canInteract);}
+  drawRoverMap();
   if(sim.isSurface&&sim.stormActive){
     audio.updateWind(sim.stormIntensity);
     hazardTipActive=true;
@@ -206,7 +229,7 @@ function updateHud(){
     if(sim.reentryIntensity<=0.1)reentryCommsSent=false;
     if(hazardTipActive){
       hazardTipActive=false;
-      $('#flight-tip').innerHTML=sim.isSurface?'DRIVE <kbd>W</kbd><kbd>S</kbd> &nbsp; STEER <kbd>A</kbd><kbd>D</kbd> &nbsp; STOP & COLLECT <kbd>E</kbd>':'THRUST <kbd>W</kbd> &nbsp; BRAKE <kbd>S</kbd> &nbsp; STEER <kbd>A</kbd><kbd>D</kbd> &nbsp; ALTITUDE <kbd>↑</kbd><kbd>↓</kbd>';
+      $('#flight-tip').innerHTML=sim.isSurface&&sim.campaign?'DRIVE <kbd>W</kbd><kbd>S</kbd> · CYCLE SITE <kbd>Z</kbd> · COLLECT <kbd>E</kbd> · DEPART <kbd>X</kbd>':sim.isSurface?'DRIVE <kbd>W</kbd><kbd>S</kbd> &nbsp; STEER <kbd>A</kbd><kbd>D</kbd> &nbsp; STOP & COLLECT <kbd>E</kbd>':'THRUST <kbd>W</kbd> &nbsp; BRAKE <kbd>S</kbd> &nbsp; STEER <kbd>A</kbd><kbd>D</kbd> &nbsp; ALTITUDE <kbd>↑</kbd><kbd>↓</kbd>';
     }
   }
 }
@@ -228,6 +251,9 @@ async function fullscreen(){try{if(document.fullscreenElement)await document.exi
 document.addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;audio.start();
   if(b.matches('[data-destination]')){selectDestination(Number(b.dataset.destination));audio.cue('click');}
+  if(b.matches('[data-rover-target]'))sim?.selectSurfaceTarget(Number(b.dataset.roverTarget));
+  if(b.id==='rover-depart')sim?.departSurface();
+  if(b.id==='ack-clue'){closeDialog();sim?.acknowledgeClue();}
 
   if(b.matches('[data-close]')){closeDialog();if(sim?.mode==='paused')sim.resume();}
   if(b.matches('[data-effect]')){const effect=b.dataset.effect;closeDialog();audio.stopVoice();sim.choose(effect);}
@@ -266,7 +292,7 @@ document.addEventListener('keydown',e=>{
   }
   if(sim?.mode==='flight'){
     if(keymap[e.code]){e.preventDefault();let mapped=keymap[e.code];if(sim.isSurface&&e.code==='ArrowUp')mapped='forward';if(sim.isSurface&&e.code==='ArrowDown')mapped='brake';keys[mapped]=true;}
-    if(!e.repeat){const map={KeyG:'assist',KeyC:'camera',KeyR:'repair',KeyQ:'pulse'};if(map[e.code]){e.preventDefault();action(map[e.code]);}if(['Digit1','Digit2','Digit3'].includes(e.code)){e.preventDefault();sim.setRoute(['engine','science','shield'][Number(e.code.slice(-1))-1]);}}
+    if(!e.repeat){const map={KeyG:'assist',KeyC:'camera',KeyR:'repair',KeyQ:'pulse'};if(map[e.code]){e.preventDefault();action(map[e.code]);}if(sim.isSurface&&sim.campaign&&e.code==='KeyZ'){e.preventDefault();for(let offset=1;offset<=sim.targets.length;offset++){const index=(Math.max(0,sim.targetIndex)+offset)%sim.targets.length;if(sim.selectSurfaceTarget(index))break;}}if(sim.isSurface&&sim.campaign&&e.code==='KeyX'){e.preventDefault();sim.departSurface();}if(['Digit1','Digit2','Digit3'].includes(e.code)){e.preventDefault();sim.setRoute(['engine','science','shield'][Number(e.code.slice(-1))-1]);}}
   }
 });
 document.addEventListener('keyup',e=>{if(keymap[e.code]){keys[keymap[e.code]]=false;if(e.code==='ArrowUp')keys.forward=false;if(e.code==='ArrowDown')keys.brake=false;}});

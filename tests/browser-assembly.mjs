@@ -10,7 +10,7 @@ try{
  await expect(page.locator('#launch-button')).toBeEnabled({timeout:12000});
  await page.keyboard.press('Digit1');await page.locator('[data-part="1"]').click();await expect(page.locator('#launch-button')).toBeDisabled();await page.waitForTimeout(1600);await expect(page.locator('.assembly-checklist')).toContainText('Power deficit');
  await page.locator('[data-part="0"]').click();await page.waitForTimeout(1600);await expect(page.locator('#launch-button')).toBeEnabled();
- await page.locator('[data-hangar="remove"]').click();await expect(page.locator('#launch-button')).toBeDisabled();await expect(page.locator('#socket-0')).toHaveText('EMPTY SOCKET');await page.locator('[data-part="0"]').click();await page.waitForTimeout(1600);
+ await page.locator('[data-hangar="remove"]').click();await expect(page.locator('#launch-button')).toBeDisabled();await expect(page.locator('#socket-0')).toHaveText('NEXT: SELECT A MODULE');await page.locator('[data-part="0"]').click();await page.waitForTimeout(1600);
  await page.keyboard.press('Escape');await page.locator('#design-button').click();await expect(page.locator('#launch-button')).toBeDisabled();
  await page.setViewportSize({width:390,height:844});await page.screenshot({path:'previews/assembly-mobile.png'});
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);

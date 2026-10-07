@@ -1,6 +1,6 @@
 # Mission Forge — The Last Transmission
 
-**Featured update:** start a new Mars mission for 3D assembly, transfer planning, electrical fault recovery, interactive mineral investigation and a decision-based debrief. See [CAMPAIGN.md](CAMPAIGN.md) for controls, scientific boundaries and verification, and [DEMO.md](DEMO.md) for a suggested judge presentation.
+**Featured update:** start a new Mars mission for 3D assembly, transfer planning, relay mystery, electrical fault recovery, interactive mineral investigation, a free-choice rover traverse and an evidence-based debrief. See [CAMPAIGN.md](CAMPAIGN.md) for controls, scientific boundaries and verification, and [DEMO.md](DEMO.md) for a suggested judge presentation.
 
 A complete six-chapter 3D space adventure built from scratch in this folder. The cockpit, cyan telemetry frames, orbiting spacecraft, and destination cards follow the supplied video’s visual direction. The vehicle, world, movement, instruments, hazards, and resource model are rendered and simulated in real time.
 
@@ -33,6 +33,8 @@ Choose Earth, the Moon, Mars, Vesta, or Jupiter. Each has its own briefing, scie
 
 The six playable chapters follow spacecraft configuration. Failure supports a stage retry. Checkpoints, mission logs, and best results persist on this device. A guided run is shorter; manual piloting and reading the crew transmissions take longer.
 
+On a new Mars campaign, three intercepted relay fragments advance the story. The rover can visit its three evidence sites in any order. Returning after the recorder and one science record preserves time and power but yields a provisional scientific interpretation; recovering both science records supports a stronger finding.
+
 ## Controls
 
 | Action | Keyboard |
@@ -48,6 +50,8 @@ The six playable chapters follow spacecraft configuration. Failure supports a st
 | Route power to engines / science / shields | 1, 2, 3 |
 | Use one of two repair kits | R |
 | Sensor pulse | Q |
+| Cycle Mars surface evidence leads | Z |
+| Depart Mars surface after recovering the recorder and one science record | X |
 | Pause / resume | Escape |
 | Controls / flight log | H / L |
 | Mute / fullscreen | M / F |

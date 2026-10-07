@@ -26,6 +26,7 @@ try{
    await page.screenshot({path:'previews/power-failure.png'});await page.locator('[data-circuit="2"]').click();await expect(page.locator('#repair-confirm')).toBeDisabled();
    for(let i=0;i<3;i++)await page.locator(`[data-circuit="${i}"]`).click();await page.locator('#repair-confirm').click();await page.keyboard.down('e');
   }
+  if(await page.locator('#ack-clue').isVisible()){await page.locator('#ack-clue').click();await page.keyboard.up('e');await page.keyboard.down('e');}
   if(await page.locator('#survey-confirm').isVisible()){
    await page.locator('#band-tuner').focus();await page.keyboard.press('Home');for(let i=0;i<40;i++)await page.keyboard.press('ArrowRight');await page.locator('#acquire-band').click();
    await page.locator('#band-tuner').focus();for(let i=0;i<20;i++)await page.keyboard.press('ArrowRight');await page.locator('#acquire-band').click();
@@ -34,6 +35,7 @@ try{
   if(await page.locator('#analysis-confirm').isVisible()){
    await page.locator('[data-claim="life"]').click();await expect(page.locator('#operation-feedback')).toContainText('cannot establish');await page.locator('[data-claim="water"]').click();await page.screenshot({path:'previews/evidence-review.png'});await page.locator('#analysis-confirm').click();
   }
+  if(!(await page.locator('#modal-layer').isVisible())&&await page.locator('#rover-depart').isVisible()&&await page.locator('#rover-depart').isEnabled()&&await page.locator('#objective-fraction').textContent()==='03 / 03'){await page.locator('#rover-depart').click();}
   if(await page.locator('[data-effect]').first().isVisible()){await page.locator('[data-effect]').first().click();await page.keyboard.up('e');await page.keyboard.down('e');}
   if(await page.locator('#export-button').isVisible()){completed=true;await expect(page.locator('.engineering-debrief')).toContainText('A DEFENSIBLE DISCOVERY');await page.screenshot({path:'previews/campaign-debrief.png'});console.log('COMPLETE',await page.locator('.debrief-stats').innerText());break;}
   if(await page.locator('#retry-button').isVisible())throw new Error('Mission failed: '+await page.locator('#dialog-title').textContent());

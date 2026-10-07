@@ -6,17 +6,17 @@ Start a **new Mars mission** for the expanded experience. Other destinations ret
 
 1. Assemble four modular subsystems in the 3D hangar. An animated service arm follows installation. The chosen model persists into flight.
 2. Select Reserve First, Balanced Transfer or Rapid Response. These authored profiles change macro-burn fuel, housekeeping power and debris density.
-3. Fly the departure and transfer corridors. During transfer, isolate the storm-damaged science bus and switch backup power in a safe order. Alternatively, preserve power with 20% slower scanning.
+3. Fly the departure and transfer corridors. Three recovered relay fragments reveal the missing station's trail one transmission at a time. During transfer, isolate the storm-damaged science bus and switch backup power in a safe order. Alternatively, preserve power with 20% slower scanning.
 4. Download three survey packets. Tune and acquire two synthetic mineral-band guides. Compare three sites and commit a landing choice.
 5. Land using relative-position and speed guidance. Proximity tones assist the approach.
-6. Drive the rover to the selected mineral site, record geological context and recover the station archive. Site selection changes the first traverse coordinates and its power allocation.
-7. Submit a scientific interpretation. Unsupported biological or global claims earn less interpretation credit and are corrected in the record.
+6. Plan your own surface traverse on the map. Select the mineral site, geological context site or recorder in any order using the map, the lead buttons or Z. The recorder plus one science record unlocks an early return with X. Collecting all three strengthens the finding, but requires more travel through the dust storm. Site selection changes the mineral-site coordinates and its power allocation.
+7. Submit a scientific interpretation. A water-related interpretation receives full support only when both field science records return. An early return produces a provisional finding. Unsupported biological or global claims earn less interpretation credit and are corrected in the record.
 8. Choose complete-archive recovery or preserve return reserves, then dock at Earth.
 9. Read the engineering debrief or export mission JSON, including the plan and scientific decisions.
 
 ## Controls and accessibility
 
-Tab/Shift+Tab and Enter operate interface controls. Keys 1–4 select hangar sockets. Native arrow keys adjust the wavelength slider. The existing flight manual documents flight keys. All operations provide textual feedback; sound is optional. Mobile layouts stack operation cards and preserve access to actions through scrolling.
+Tab/Shift+Tab and Enter operate interface controls. Keys 1–4 select hangar sockets. Native arrow keys adjust the wavelength slider. On the Mars surface, Z cycles the three evidence leads and X departs once the minimum evidence is aboard. The existing flight manual documents flight keys. All operations provide textual feedback; sound is optional. Mobile layouts stack operation cards and preserve access to actions through scrolling.
 
 ## Science and data
 
@@ -36,8 +36,8 @@ Planning reserves exclude manual maneuvers, optional operations and recovery. Me
 
 ## Verification
 
-Run `npm test` for 22 simulation checks. With production preview at port 4174, run `node tests/browser-campaign.mjs` and `node tests/browser-assembly.mjs`.
+Run `npm test` for 30 simulation checks. With production preview at port 4174, run `node tests/browser-campaign.mjs` and `node tests/browser-assembly.mjs`.
 
-The campaign browser check uses actual interface/keyboard actions, optional guidance and an accelerated test clock. It completes all six chapters, circuit restoration, both spectral acquisitions, site selection, interpretation, archive recovery and final docking. Production time remains unchanged. Keyboard, removal/reinstallation, power-deficit gating, mobile layout and campaign checkpoint restoration are checked separately.
+The campaign browser check uses actual interface/keyboard actions, optional guidance and an accelerated test clock. It completes all six chapters, circuit restoration, three relay clues, both spectral acquisitions, all three surface leads, interpretation, archive recovery and final docking. Production time remains unchanged. Simulation checks separately cover out-of-order leads and early departure with provisional science. Keyboard, removal/reinstallation, power-deficit gating, mobile layout and campaign checkpoint restoration are checked separately.
 
 The recorded browser run finished with 236 science, 83% hull, two collisions and zero page errors. This does not replace feedback from first-time human players or exhaustive hardware compatibility testing.
