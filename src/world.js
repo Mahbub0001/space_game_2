@@ -167,6 +167,7 @@ export class SpaceWorld {
       else if(this.cameraMode===1){cam.set(p.x,p.y+1.7,p.z-6.5);focal.z-=90;}
       else if(this.cameraMode===2){cam.set(p.x+23,p.y+9,p.z+14);focal.z-=15;}
       else{cam.set(p.x*.98,p.y+8,p.z+35);focal.z-=28;focal.y+=2;}
+      if(!surface&&sim.throttle>1&&sim.mode==='flight'){cam.x+=Math.sin(t*57)*.08;cam.y+=Math.cos(t*43)*.05;}
       this.camera.position.lerp(cam,1-Math.exp(-dt*(this.cameraMode===1?18:5)));this.camera.lookAt(focal);
       if(this.shake>0){this.camera.position.add(V((Math.random()-.5)*this.shake,(Math.random()-.5)*this.shake,0));this.shake=Math.max(0,this.shake-dt*2);}
       this.camera.fov=THREE.MathUtils.lerp(this.camera.fov,sim.speed>65?59:46,dt*2);this.camera.updateProjectionMatrix();
@@ -180,7 +181,7 @@ export class SpaceWorld {
       if(!surface)this.debris.forEach((rock,i)=>{rock.rotation.x+=dt*sim.hazards[i].spin;rock.rotation.y+=dt*.05;});
       this.scanWave.position.copy(surface?this.rover.position:this.ship.position);if(sim.pulse>0){this.scanWave.visible=true;this.scanWave.scale.setScalar((4-sim.pulse)*48);this.scanWave.material.opacity=sim.pulse/12;}else this.scanWave.visible=false;
     }
-    const engineScale=this.menu?1:sim?.speed?(.35+sim.speed/45):.14;this.ship.userData.flames.forEach((flame,i)=>{if(i%2===0)flame.scale.set(1,engineScale*(.9+Math.sin(t*42)*.1),1);else flame.material.opacity=.45+Math.sin(t*22)*.12;});
+    const engineScale=this.menu?.5:sim?.mode==='flight'?(sim.throttle||0):0;this.ship.userData.flames.forEach((flame,i)=>{flame.visible=engineScale>.02;if(i%2===0)flame.scale.set(1,engineScale*(.9+Math.sin(t*42)*.1),1);else flame.material.opacity=.45+Math.sin(t*22)*.12;});
     for(let i=this.particles.length-1;i>=0;i--){const particle=this.particles[i];particle.life-=dt;const a=particle.object.geometry.attributes.position;for(let j=0;j<a.count;j++){a.setXYZ(j,a.getX(j)+particle.velocity[j*3]*dt,a.getY(j)+particle.velocity[j*3+1]*dt,a.getZ(j)+particle.velocity[j*3+2]*dt);}a.needsUpdate=true;particle.object.material.opacity=particle.life/1.2;if(particle.life<=0){this.scene.remove(particle.object);particle.object.geometry.dispose();particle.object.material.dispose();this.particles.splice(i,1);}}
     if(this.highQuality)this.composer.render();else this.renderer.render(this.scene,this.camera);
   }

@@ -1,5 +1,16 @@
 # Verification — ODYSSEY v2
 
+## Expanded Mars campaign — 2026-10-07
+
+- Production build successful; **22 simulation tests pass**, including all six route/repair combinations, science reward gates, selected-site coordinates and persistence.
+- `tests/browser-campaign.mjs`: completed assembly, planning, all six chapters, safe circuit restoration, both spectral acquisitions, boundary-site selection, evidence review, archive choice and final docking. **236 science, 83% hull, 2 collisions, zero page errors.** Uses optional guidance and an accelerated browser test clock, with actual UI and keyboard input.
+- `tests/browser-assembly.mjs`: keyboard module installation, power-deficit blocking, removal/reinstallation, dialog reopening, 390 px mobile layout, route selection and campaign checkpoint restoration passed.
+- `tests/production-smoke.mjs`: bundled assets, new launch flow, manual thrust and dialog mute passed with no page errors or failed requests.
+- Screenshots: `previews/hangar-complete.png`, `previews/mission-planning.png`, `previews/power-failure.png`, `previews/mineral-investigation.png`, `previews/evidence-review.png`, `previews/campaign-debrief.png`.
+- This is automated functional coverage, not an assertion of human usability validation, exact video matching, aerospace certification or competition readiness.
+
+## Earlier baseline
+
 Verified locally with Node.js and headless Microsoft Edge (Playwright).
 
 - Production build: successful, with local textures, fonts, and rendering dependencies bundled.

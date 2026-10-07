@@ -1,5 +1,5 @@
 export class FlightAudio {
-  constructor(){this.muted=false;this.voice=true;this.ctx=null;this.lastWarning=0;this.musicTime=0;}
+  constructor(){this.muted=false;this.voice=true;this.ctx=null;this.lastWarning=0;this.musicTime=0;this.lastProximity=0;}
   async start(){
     if(this.ctx){await this.ctx.resume();return;}
     try{
@@ -8,7 +8,7 @@ export class FlightAudio {
       this.engine=this.ctx.createOscillator();this.engine.type='sawtooth';this.engine.frequency.value=48;
       this.filter=this.ctx.createBiquadFilter();this.filter.type='lowpass';this.filter.frequency.value=160;
       this.engineGain=this.ctx.createGain();this.engineGain.gain.value=.025;
-      this.engine.connect(this.filter);this.filter.connect(this.engineGain);this.engineGain.connect(this.master);this.engine.start();
+      this.engine.connect(this.filter);this.filter.connect(this.engineGain);this.enginePan=this.ctx.createStereoPanner();this.engineGain.connect(this.enginePan);this.enginePan.connect(this.master);this.engine.start();
       this.drone=this.ctx.createOscillator();this.drone.frequency.value=55;this.droneGain=this.ctx.createGain();this.droneGain.gain.value=.08;
       this.drone.connect(this.droneGain);this.droneGain.connect(this.master);this.drone.start();
       const buffer=this.ctx.createBuffer(1,this.ctx.sampleRate*2,this.ctx.sampleRate);const d=buffer.getChannelData(0);let last=0;
@@ -38,7 +38,9 @@ export class FlightAudio {
     if(!this.ctx)return;
     const moving=sim?.mode==='flight';const speed=moving?sim.speed:2;const t=this.ctx.currentTime;
     this.engine.frequency.setTargetAtTime(35+speed*.9,t,.12);this.filter.frequency.setTargetAtTime(95+speed*5,t,.15);
-    this.engineGain.gain.setTargetAtTime(moving?.035+speed*.001:.008,t,.2);this.noiseGain.gain.setTargetAtTime(moving?.035+speed*.002:.012,t,.15);
+    const throttle=moving?(sim.isSurface?Math.min(speed/19,1):(sim.throttle||0)):0;
+    this.engineGain.gain.setTargetAtTime(.008+throttle*.06,t,.2);this.enginePan.pan.setTargetAtTime(moving?Math.max(-.6,Math.min(.6,sim.velocity.x/25)):0,t,.1);this.noiseGain.gain.setTargetAtTime(moving?.035+speed*.002:.012,t,.15);
+    if(moving&&[3,5].includes(sim.stage)&&sim.range<150&&t-this.lastProximity>Math.max(.3,sim.range/100)){this.lastProximity=t;this.tone(sim.canInteract?880:sim.speed>10?300:600,.055,'sine',.035);}
     this.musicTime+=dt;
     if(this.musicTime>5.5){this.musicTime=0;const notes=[110,164.81,220,261.63,329.63];this.tone(notes[Math.floor(Math.random()*notes.length)],3.5,'sine',.026);}
     if(moving&&sim.hull<30&&t-this.lastWarning>4){this.lastWarning=t;this.cue('alert');}

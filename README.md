@@ -1,5 +1,7 @@
 # ODYSSEY — The Last Transmission
 
+**Featured update:** start a new Mars mission for 3D assembly, transfer planning, electrical fault recovery, interactive mineral investigation and a decision-based debrief. See [CAMPAIGN.md](CAMPAIGN.md) for controls, scientific boundaries and verification, and [DEMO.md](DEMO.md) for a suggested judge presentation.
+
 A complete six-chapter 3D space adventure built from scratch in this folder. The cockpit, cyan telemetry frames, orbiting spacecraft, and destination cards follow the supplied video’s visual direction. The vehicle, world, movement, instruments, hazards, and resource model are rendered and simulated in real time.
 
 ## Play on Windows

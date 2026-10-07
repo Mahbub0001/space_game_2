@@ -1,5 +1,9 @@
 # Sources, attribution, and authored content
 
+## Mars investigation reference
+
+NASA, [Cracks in Ancient Martian Mud Surprise NASA's Curiosity Rover Team](https://www.nasa.gov/missions/mars-science-laboratory/curiosity-rover/cracks-in-ancient-martian-mud-surprise-nasas-curiosity-rover-team/), consulted 2026-10-07. This informs the interpretation of clay/sulfate minerals and changing water-related environments. The game does **not** import measured spectra from this article. Training curves, indices, uncertainties, sites and route schedules are authored synthetic values. See CAMPAIGN.md for model limitations.
+
 ## Planet textures bundled with the game
 
 | Local asset | Source and credit |

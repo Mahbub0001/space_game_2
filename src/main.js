@@ -1,3 +1,6 @@
+import {makeCampaign,flightPlan,SITES} from './campaign.js';
+import {plannerMarkup,bindPlanner,operationMarkup,bindOperation,campaignDebrief} from './mission-ui.js';
+let committedPlan=null;
 import '@fontsource/rajdhani/latin-400.css';
 import '@fontsource/rajdhani/latin-500.css';
 import '@fontsource/rajdhani/latin-600.css';
@@ -27,7 +30,7 @@ function persistSettings(){save('odyssey-settings',{voice:audio.voice,quality:wo
 function updateAudioButton(){const b=$('#sound-button');b.textContent=audio.muted?'♪':'♫';b.setAttribute('aria-pressed',String(!audio.muted));b.title=audio.muted?'Enable audio (M)':'Mute audio (M)';}
 function soundToggle(){audio.start();audio.toggle();updateAudioButton();persistSettings();}
 function showDialog(kind,html,wide=false){
-  restoreFocus=document.activeElement;keys={};dialogKind=kind;$('#dialog').className='dialog'+(wide?' wide':'');$('#dialog').innerHTML=html;$('#modal-layer').hidden=false;
+  restoreFocus=document.activeElement;keys={};dialogKind=kind;$('#dialog').className='dialog'+(wide?' wide':'');$('#dialog').classList.add(kind+'-dialog');$('#dialog').innerHTML=html;$('#modal-layer').hidden=false;
   requestAnimationFrame(()=>$('#dialog').querySelector('button:not(:disabled),select,a')?.focus({preventScroll:true}));
 }
 function closeDialog(){
@@ -57,8 +60,20 @@ function designDialog(){
   $('#difficulty-select').value=difficulty;
   $('#difficulty-select').onchange=e=>{difficulty=e.target.value;};
 }
+function flightPlanDialog(){
+  closeDialog();
+  if(DESTINATIONS[selected].id!=='mars'){committedPlan=null;initializeFlight();return;}
+  showDialog('planning',`${header('MISSION PLANNING / MARS','PLAN FOR THE WAY HOME.',true)}${plannerMarkup(designStats(loadout,'mars'))}`,true);
+  bindPlanner($('#dialog'),plan=>{committedPlan=makeCampaign(plan);initializeFlight();});
+}
+function operationDialog(kind){
+  keys={};audio.stopVoice();audio.cue('alert');
+  const title={repair:'THE SCIENCE BUS IS DOWN.',survey:'FOLLOW THE EVIDENCE.',analysis:'WHAT CAN WE ACTUALLY CLAIM?'}[kind];
+  showDialog('operation',`${header('FIELD OPERATIONS / '+kind.toUpperCase(),title)}${operationMarkup(sim,kind)}`,true);
+  bindOperation($('#dialog'),sim,kind,value=>{closeDialog();sim.resolveOperation(kind,value);},name=>audio.cue(name));
+}
 function initializeFlight(checkpoint=null){
-  closeDialog();audio.start();sim=checkpoint?Simulation.restore(checkpoint,handleEvent):new Simulation({destination:DESTINATIONS[selected].id,loadout,difficulty,onEvent:handleEvent});
+  closeDialog();audio.start();sim=checkpoint?Simulation.restore(checkpoint,handleEvent):new Simulation({destination:DESTINATIONS[selected].id,loadout,difficulty,campaign:committedPlan,onEvent:handleEvent});
   view='flight';$('#menu-view').hidden=true;$('#flight-view').hidden=false;document.body.classList.add('in-flight');
   $('#touch-controls').hidden=!matchMedia('(pointer: coarse)').matches;world.setupStage(sim);saveCheckpoint();buildFlightHud();showBriefing();
 }
@@ -68,8 +83,17 @@ function returnMenu(){
   closeDialog();audio.stopVoice();sim=null;view='menu';keys={};$('#menu-view').hidden=false;$('#flight-view').hidden=true;$('#touch-controls').hidden=true;document.body.classList.remove('in-flight');buildCards();selectDestination(selected);$('#resume-button').hidden=!savedCheckpoint;
 }
 function stageInfo(){const stage={...STAGES[sim.stage]};if(!sim.destination.surface&&sim.stage===3){stage.title='RENDEZVOUS IN THE DARK';stage.verb='Rendezvous with the disabled probe';stage.message='The probe is ahead. Match its relative motion, slow below 10 meters per second, and hold E inside the capture zone. We will deploy a recovery drone from here.';stage.fact='A gas giant has no solid surface. This recovery operation takes place in space.';if(sim.destination.id==='earth')stage.fact='Docking and capture require matching relative velocity, not stopping in an absolute frame.';}if(!sim.destination.surface&&sim.stage===4){stage.title='THE RECOVERY OPERATION';stage.message='The recovery drone is away. Approach each marked record package, brake, and hold E to retrieve it. The last package is the primary science recorder.';stage.tip='W thrust · S brake · A/D translate · ↑/↓ altitude · E recover';}return stage;}
+function campaignBriefing(stage){
+  if(!sim.campaign)return stage;
+  const site=SITES.find(s=>s.id===sim.campaign.site)?.name||'the selected site';
+  if(sim.stage===0)stage.message='Ares Station has been silent for nineteen days. You built this vehicle; now fly it. Hold W to accelerate, release to coast, and use S to brake. Follow the three departure gates. G enables optional guidance. Your transfer plan is '+flightPlan(sim.campaign).name.toLowerCase()+'.';
+  if(sim.stage===2)stage.message='The relays hold mineral surveys of the terrain around Ares. Recover all three packets, then use the instrument console to compare candidate landing sites. Your choice determines the rover traverse.';
+  if(sim.stage===3)stage.message='Approaching '+site+'. Watch lateral offset and relative speed on the approach guide. Brake below 10 meters per second, then hold E inside the capture corridor. The auxiliary landing system handles final descent.';
+  if(sim.stage===4)stage.message='The rover is deployed near '+site+'. Collect a mineral core, document its geological context, and retrieve the recorder. Then submit a scientific interpretation. Interesting rocks alone cannot establish that life existed.';
+  return stage;
+}
 function showBriefing(){
-  const s=stageInfo();showDialog('briefing',`${header('CHAPTER '+s.chapter+' / '+sim.destination.name,s.title)}<div class="stage-preview">${STAGES.map((_,i)=>`<span class="${i<=sim.stage?'active':''}"></span>`).join('')}</div><p class="dialog-lead">${s.message}</p><div class="briefing-fact"><span>⌬</span><p><b>THE SCIENCE BEHIND THE FLIGHT</b><br>${s.fact}</p></div><p class="briefing-tip">${s.tip}</p><div class="dialog-footer"><span>CHECKPOINT SAVED · H CONTROLS · ESC PAUSE</span><button class="primary-button" id="begin-stage"><span>${sim.stage===0?'TAKE THE CONTROLS':sim.isSurface?'DEPLOY THE ROVER':'CONTINUE EXPEDITION'}</span><b>↗</b></button></div>`);
+  const s=campaignBriefing(stageInfo());showDialog('briefing',`${header('CHAPTER '+s.chapter+' / '+sim.destination.name,s.title)}<div class="stage-preview">${STAGES.map((_,i)=>`<span class="${i<=sim.stage?'active':''}"></span>`).join('')}</div><p class="dialog-lead">${s.message}</p><div class="briefing-fact"><span>⌬</span><p><b>THE SCIENCE BEHIND THE FLIGHT</b><br>${s.fact}</p></div><p class="briefing-tip">${s.tip}</p><div class="dialog-footer"><span>CHECKPOINT SAVED · H CONTROLS · ESC PAUSE</span><button class="primary-button" id="begin-stage"><span>${sim.stage===0?'TAKE THE CONTROLS':sim.isSurface?'DEPLOY THE ROVER':'CONTINUE EXPEDITION'}</span><b>↗</b></button></div>`);
 }
 function buildFlightHud(){
   const s=stageInfo();$('#flight-chapter').textContent=`${s.chapter} / ${s.short.toUpperCase()} · ${sim.destination.name}`;$('#flight-title').textContent=s.title;$('#objective-main').textContent=s.verb;
@@ -82,6 +106,8 @@ function buildFlightHud(){
 function updateObjectives(){if(!sim)return;$('#objective-list').innerHTML=sim.targets.map((t,i)=>`<li class="${i<sim.targetIndex?'done':i===sim.targetIndex?'active':''}">${t.name}</li>`).join('');$('#objective-fraction').textContent=`${String(Math.min(sim.targetIndex+1,sim.targets.length)).padStart(2,'0')} / ${String(sim.targets.length).padStart(2,'0')}`;}
 function communicate(speaker,message,speak=true){transcript=message;typed=0;$('#comm-speaker').textContent=speaker.toUpperCase();$('#comm-state').textContent='INCOMING TRANSMISSION';if(speak)audio.speak(message);}
 function handleEvent(event){
+  if(event.type==='operation')operationDialog(event.kind);
+  if(event.type==='operationResolved'){audio.cue('success');notify('DECISION LOGGED · YOUR MISSION HAS CHANGED');}
   if(event.type==='begin'){const s=stageInfo();communicate(s.commander,s.message);audio.cue('success');}
   if(event.type==='target'){audio.cue('success');notify('✓ '+event.name+' COMPLETE');updateObjectives();}
   if(event.type==='impact'){audio.cue('impact');world.impact();const flash=$('#impact-flash');flash.classList.remove('flash');void flash.offsetWidth;flash.classList.add('flash');notify('IMPACT · Hull damage. Steer clear or press R to repair.','warning');}
@@ -95,7 +121,7 @@ function handleEvent(event){
   if(event.type==='choice'){audio.cue('click');communicate('Mission control','Decision logged. Your flight profile has been updated.',false);}
   if(event.type==='stageComplete'){
     keys={};audio.stopVoice();audio.cue('transition');$('#cinematic-kicker').textContent='CHAPTER '+String(sim.stage+1).padStart(2,'0')+' COMPLETE';$('#cinematic-title').textContent=STAGES[sim.stage+1].title;
-    $('#cinematic-copy').textContent=sim.stage===0?`${sim.destination.days} days of coast, compressed into the next chapter.`:sim.stage===3?(sim.destination.surface?'Touchdown confirmed. Deploying the surface rover.':'Rendezvous confirmed. Deploying the recovery vehicle.'):sim.stage===4?'Departure burn complete. The long journey home begins.':'Trajectory confirmed. Reconfiguring flight systems.';
+    $('#cinematic-copy').textContent=sim.stage===0?`${sim.campaign?flightPlan(sim.campaign).days:sim.destination.days} days of coast, compressed into the next chapter.`:sim.stage===3?(sim.destination.surface?'Touchdown confirmed. Deploying the surface rover.':'Rendezvous confirmed. Deploying the recovery vehicle.'):sim.stage===4?'Departure burn complete. The long journey home begins.':'Trajectory confirmed. Reconfiguring flight systems.';
     $('#cinematic').hidden=false;setTimeout(()=>{if(sim?.mode==='transition'){sim.advance();}$('#cinematic').hidden=true;},3900);
   }
   if(event.type==='stage'){world.setupStage(sim);saveCheckpoint();buildFlightHud();showBriefing();}
@@ -104,10 +130,10 @@ function handleEvent(event){
 }
 function completeMission(){
   keys={};audio.cue('success');audio.stopVoice();const rank=sim.score>=185&&sim.hull>=65?'S':sim.score>=155?'A':sim.score>=115?'B':'C';
-  const result={score:Math.round(sim.score),rank,time:sim.time,hull:Math.round(sim.hull),fullArchive:sim.fullArchive,destination:sim.destination.name,journal:sim.journal,date:new Date().toISOString()};
+  const result={score:Math.round(sim.score),rank,time:sim.time,hull:Math.round(sim.hull),fullArchive:sim.fullArchive,destination:sim.destination.name,journal:sim.journal,campaign:sim.campaign,loadout:sim.loadout,date:new Date().toISOString()};
   if(!records[sim.destination.id]||records[sim.destination.id].score<result.score){records[sim.destination.id]=result;save('odyssey-records',records);}
   savedCheckpoint=null;try{localStorage.removeItem('odyssey-checkpoint');}catch{}$('#resume-button').hidden=true;lastJournal=sim.journal;save('odyssey-journal',lastJournal);
-  showDialog('complete',`<div class="rank-badge">${rank}</div>${header('EXPEDITION COMPLETE / '+sim.destination.name,'YOU BROUGHT THE STORY HOME.')}<p class="dialog-lead">${sim.destination.discovery}</p><p>${sim.fullArchive?'The complete archive survived the journey. Every measurement and every recorded voice is now safely on Earth.':'The validated samples reached Earth. Your team preserved the essential record and a larger return reserve.'}</p><div class="debrief-stats"><div><b>${result.score}</b><span>SCIENCE RETURN</span></div><div><b>${Math.round(sim.hull)}%</b><span>VEHICLE INTEGRITY</span></div><div><b>${formatTime(sim.time)}</b><span>FLIGHT TIME</span></div><div><b>${sim.collisions}</b><span>COLLISIONS</span></div></div><div class="briefing-fact"><span>⌬</span><p>${sim.destination.science}<br><a href="${sim.destination.source}" target="_blank" rel="noopener" style="color:var(--cyan)">Explore the NASA science ↗</a></p></div><div class="dialog-actions"><button class="primary-button" data-menu><span>CHOOSE THE NEXT FRONTIER</span><b>↗</b></button><button class="outline-button" id="export-button">EXPORT MISSION LOG ↓</button></div>`);
+  showDialog('complete',`<div class="rank-badge">${rank}</div>${header('EXPEDITION COMPLETE / '+sim.destination.name,'YOU BROUGHT THE STORY HOME.')}<p class="dialog-lead">${sim.destination.discovery}</p><p>${sim.fullArchive?'The complete archive survived the journey. Every measurement and every recorded voice is now safely on Earth.':'The validated samples reached Earth. Your team preserved the essential record and a larger return reserve.'}</p><div class="debrief-stats"><div><b>${result.score}</b><span>SCIENCE RETURN</span></div><div><b>${Math.round(sim.hull)}%</b><span>VEHICLE INTEGRITY</span></div><div><b>${formatTime(sim.time)}</b><span>FLIGHT TIME</span></div><div><b>${sim.collisions}</b><span>COLLISIONS</span></div></div><div class="briefing-fact"><span>⌬</span><p>${sim.destination.science}<br><a href="${sim.destination.source}" target="_blank" rel="noopener" style="color:var(--cyan)">Explore the NASA science ↗</a></p></div>${campaignDebrief(sim)}<div class="dialog-actions"><button class="primary-button" data-menu><span>CHOOSE THE NEXT FRONTIER</span><b>↗</b></button><button class="outline-button" id="export-button">EXPORT MISSION LOG ↓</button></div>`);
   $('#export-button').onclick=()=>{const blob=new Blob([JSON.stringify(result,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`odyssey-${sim.destination.id}-mission.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
 }
 function pauseMenu(){
@@ -138,6 +164,8 @@ function updateHud(){
   $('#range-value').innerHTML=Math.round(sim.range)+' <small>m</small>';$('#science-value').textContent=String(Math.round(sim.score)).padStart(3,'0');$('#elapsed').textContent=formatTime(sim.time);
   $('#assist-button').innerHTML=`GUIDANCE <b>${sim.assist?'ON':'OFF'}</b> <kbd>G</kbd>`;$('#assist-button').classList.toggle('active',sim.assist);
   $$('[data-route]').forEach(b=>b.classList.toggle('active',b.dataset.route===sim.route));$('#route-description').textContent={balanced:'Balanced allocation. Select a priority.',engine:'More thrust. Responsive maneuvering.',science:'Scanner speed increased by 55%.',shield:'Impact damage reduced by 55%.'}[sim.route];
+  const guide=$('#approach-guide');guide.hidden=![3,5].includes(sim.stage)||sim.range>220||sim.mode!=='flight';
+  if(!guide.hidden&&sim.target){const dx=sim.target.x-sim.position.x,dy=sim.target.y-sim.position.y;$('#approach-name').textContent=sim.stage===5?'DOCKING / RELATIVE MOTION':'LANDING / CAPTURE CORRIDOR';$('#approach-state').textContent=sim.canInteract?'CAPTURE READY':sim.speed>10?'BRAKE':'ALIGN';guide.classList.toggle('ready',sim.canInteract);$('#approach-dot').setAttribute('cx',80+clamp(dx,-65,65));$('#approach-dot').setAttribute('cy',50-clamp(dy,-40,40));$('#approach-values').textContent=`LATERAL ${Math.hypot(dx,dy).toFixed(1)} m · SPEED ${sim.speed.toFixed(1)} m/s`;}
   const prompt=$('#interact-prompt');prompt.hidden=sim.stage<2||!sim.target||sim.range>110;
   $('#interact-label').textContent=sim.canInteract?(sim.stage===5?'HOLD TO DOCK':sim.stage===3?'HOLD TO '+(sim.destination.surface?'LAND':'CAPTURE'):sim.isSurface?'HOLD TO COLLECT':'HOLD TO SCAN'):(sim.range>(sim.isSurface?24:sim.stage===2||sim.stage===4?65:35)?'MOVE CLOSER':'BRAKE TO STABILIZE');
   $('#scan-progress').style.width=clamp(sim.scan,0,1)*100+'%';
@@ -166,7 +194,7 @@ document.addEventListener('click',e=>{
   if(b.matches('[data-effect]')){const effect=b.dataset.effect;closeDialog();audio.stopVoice();sim.choose(effect);}
   if(b.matches('[data-route]')&&sim?.mode==='flight')sim.setRoute(b.dataset.route);
   if(b.matches('[data-menu]'))returnMenu();
-  if(b.id==='launch-button'&&assembly?.ready)initializeFlight();
+  if(b.id==='launch-button'&&assembly?.ready)flightPlanDialog();
   if(b.id==='begin-stage'){closeDialog();sim.begin();}
   if(b.id==='resume-flight'){closeDialog();sim.resume();}
   if(b.id==='retry-button'){const checkpoint=sim.checkpoint;initializeFlight(checkpoint);}
@@ -182,8 +210,9 @@ $('#assist-button').onclick=()=>action('assist');$('#camera-button').onclick=()=
 const keymap={KeyW:'forward',KeyS:'brake',KeyA:'left',KeyD:'right',ArrowLeft:'left',ArrowRight:'right',ArrowUp:'up',ArrowDown:'down',Space:'boost',KeyE:'interact'};
 document.addEventListener('keydown',e=>{
   if(e.code==='KeyM'&&!e.repeat&&!e.target.matches('input,select,textarea')){e.preventDefault();soundToggle();return;}
-  if(e.code==='Tab'&&dialogKind){const buttons=[...$('#dialog').querySelectorAll('button:not(:disabled),select,a[href],summary')].filter(el=>el.getClientRects().length>0);const first=buttons[0],last=buttons.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}return;}
-  if(e.code==='Escape'){e.preventDefault();if(dialogKind==='pause'){closeDialog();sim?.resume();}else if(['controls','journal','credits','design'].includes(dialogKind)){closeDialog();if(sim?.mode==='paused')sim.resume();}else if(!dialogKind&&view==='flight')pauseMenu();return;}
+  if(dialogKind==='design'&&/^Digit[1-4]$/.test(e.code)&&!e.target.matches('input,select,textarea')){e.preventDefault();const slot=Number(e.code.slice(-1))-1;assembly?.selectSlot(slot);$(`[data-slot="${slot}"]`)?.focus();return;}
+  if(e.code==='Tab'&&dialogKind){const buttons=[...$('#dialog').querySelectorAll('button:not(:disabled),select,a[href],summary,input')].filter(el=>el.getClientRects().length>0);const first=buttons[0],last=buttons.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}return;}
+  if(e.code==='Escape'){e.preventDefault();if(dialogKind==='pause'){closeDialog();sim?.resume();}else if(['controls','journal','credits','design','planning'].includes(dialogKind)){closeDialog();if(sim?.mode==='paused')sim.resume();}else if(!dialogKind&&view==='flight')pauseMenu();return;}
   if(dialogKind){if(dialogKind==='event'&&['Digit1','Digit2'].includes(e.code)&&!e.repeat){e.preventDefault();$$('[data-effect]')[e.code==='Digit1'?0:1]?.click();}return;}
   if(e.target.matches('input,select,textarea'))return;
   if(!e.repeat){
@@ -216,6 +245,7 @@ function tick(now){
     const p=world.projectTarget(sim);const marker=$('#target-marker');marker.hidden=!p||sim.mode!=='flight';
     if(p){marker.style.left=clamp(p.x,innerWidth<800?35:260,innerWidth-(innerWidth<800?35:275))+'px';marker.style.top=clamp(p.y,150,innerHeight-230)+'px';marker.style.opacity=p.behind?'.3':'1';}
     typed=Math.min(transcript.length,typed+dt*48);$('#comm-text').textContent=transcript.slice(0,Math.floor(typed));if(typed>=transcript.length)$('#comm-state').textContent='TRANSMISSION RECEIVED';
+    if(sim.mode==='flight'&&sim.stage===0&&sim.campaign){$('#flight-tip').innerHTML=sim.assist?'GUIDANCE ENGAGED · Watch the ship track gates. Press <kbd>G</kbd> to take control.':sim.stageTime<8?'FIRST MANEUVER · Hold <kbd>W</kbd> to thrust toward the navigation gate.':sim.stageTime<16?'INERTIA · Release <kbd>W</kbd> to coast. Hold <kbd>S</kbd> to brake.':'ALIGN WITH THE GATE · <kbd>A</kbd><kbd>D</kbd> lateral · <kbd>↑</kbd><kbd>↓</kbd> altitude · <kbd>G</kbd> guidance';}
     if(sim.mode==='flight'&&sim.scan>0&&keys.interact){scanSound+=dt;if(scanSound>.5){audio.cue('scan');scanSound=0;}}
   }
   requestAnimationFrame(tick);

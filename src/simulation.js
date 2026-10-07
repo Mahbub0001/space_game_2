@@ -1,12 +1,14 @@
+import {makeCampaign,flightPlan,SITES,resolveOperation} from './campaign.js';
 import {DESTINATIONS,STAGES,designStats,clamp} from './data.js';
 
 export function seeded(seed=1287){return ()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};}
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z);
 const point=(x,y,z)=>({x,y,z});
 export class Simulation {
-  constructor({destination='mars',loadout=[0,1,1,1],difficulty='explorer',onEvent=()=>{}}={}) {
+  constructor({destination='mars',loadout=[0,1,1,1],difficulty='explorer',campaign=null,onEvent=()=>{}}={}) {
     this.destination=DESTINATIONS.find(d=>d.id===destination)||DESTINATIONS[2];
     this.loadout=[...loadout]; this.stats=designStats(loadout,this.destination.id); this.difficulty=difficulty; this.onEvent=onEvent;
+    this.campaign=campaign?JSON.parse(JSON.stringify(campaign)):null;this.operation=null;
     this.stage=0; this.mode='briefing';this.time=0;this.stageTime=0;this.score=0;this.hull=100;this.fuel=100;
     this.power=100;this.repairs=2;this.route='balanced';this.assist=false;this.eventFlags={};this.journal=[];this.collisions=0;
     this.scan=0;this.targetIndex=0;this.heat=0;this.immunity=0;this.pulse=0;this.fullArchive=false;
@@ -19,7 +21,7 @@ export class Simulation {
   get speed(){return Math.hypot(this.velocity.x,this.velocity.y,this.velocity.z);}
   get missionProgress(){return (this.stage+this.targetIndex/Math.max(1,this.targets.length))/6;}
   setupStage(){
-    this.stageTime=0;this.targetIndex=0;this.scan=0;this.canInteract=false;this.speedCommand=0;this.heat=0;this.heading=0;this.stranded=0;
+    this.stageTime=0;this.targetIndex=0;this.scan=0;this.canInteract=false;this.speedCommand=0;this.heat=0;this.heading=0;this.stranded=0;this.throttle=0;
     this.position=point(0,this.isSurface?0:8,60);this.velocity=point(0,0,0);this.immunity=2;
     const names=['NAVIGATION GATE 01','NAVIGATION GATE 02','DEPARTURE VECTOR'];
     const make=(p,i,name)=>({...point(...p),name:name||names[i],done:false});
@@ -29,8 +31,9 @@ export class Simulation {
     if(this.stage===3) this.targets=[make([0,-10,-540],0,this.destination.surface?'LANDING ZONE / LZ-01':'PROBE CAPTURE ZONE')];
     if(this.stage===4) this.targets=(this.isSurface?[[-45,0,-75],[50,0,-170],[-10,0,-295]]:[[-35,15,-190],[35,-10,-420],[0,5,-650]]).map((p,i)=>make(p,i,['MINERAL SURVEY','CONTEXT SAMPLE','STATION RECORDER'][i]));
     if(this.stage===5) this.targets=[make([0,8,-610],0,'KEPLER RECOVERY STATION')];
+    if(this.campaign?.site&&this.stage===4&&this.isSurface){const site=SITES.find(s=>s.id===this.campaign.site);if(site){this.targets[0]={...this.targets[0],x:site.x,z:site.z,name:site.name+' / MINERAL CORE'};this.targets[1].name='LAYER CONTEXT / CAMERA MOSAIC';}}
     this.hazards=[];const random=seeded(2801+this.stage*37+this.destination.difficulty);
-    const count=this.stage===1?70:this.stage===0?8:this.stage===2?18:this.stage===5?10:0;
+    const count=this.stage===1?Math.round(70*flightPlan(this.campaign).hazards):this.stage===0?8:this.stage===2?18:this.stage===5?10:0;
     for(let i=0;i<count;i++){
       const z=-80-random()*(this.stage===1?920:760),x=(random()-.5)*310,y=(random()-.5)*160;
       // Keep some clear space around survey targets; the debris corridor is deliberately navigable.
@@ -41,6 +44,7 @@ export class Simulation {
     if(this.isSurface)for(let i=0;i<20;i++){const x=(random()-.5)*270,z=-random()*350;const p={x,y:0,z,radius:2+random()*3,rotation:random()*6,spin:0};if(this.targets.every(t=>distance(t,p)>32))this.hazards.push(p);}
     this.checkpoint=this.serialize();
   }
+  resolveOperation(kind,value){return resolveOperation(this,kind,value);}
   begin(){if(this.mode==='briefing'){this.mode='flight';this.emit('begin');}}
   setRoute(route){this.route=route;this.emit('route',{route});}
   toggleAssist(){this.assist=!this.assist;this.emit('assist',{active:this.assist});}
@@ -73,7 +77,7 @@ export class Simulation {
   advance(){
     if(this.mode!=='transition')return;this.stage++;
     // Macro burns represent the off-screen transfer/insertion/ascent legs, not local input alone.
-    const burn=[0,18,7,10,2,18][this.stage];const housekeeping=[0,8,7,4,6,9][this.stage];
+    const plan=flightPlan(this.campaign);const burn=[0,18,7,10,2,18][this.stage]*(this.campaign?plan.burn:1);const housekeeping=[0,8,7,4,6,9][this.stage]*(this.campaign?plan.housekeeping:1);
     this.fuel=clamp(this.fuel-burn*this.stats.efficiency,0,100);
     this.power=clamp(this.power-housekeeping*(110/this.stats.power),0,100);
     this.setupStage();this.mode='briefing';this.emit('stage',{stage:this.stage});
@@ -83,7 +87,10 @@ export class Simulation {
     this.scan=0;this.targetIndex++;this.emit('target',{name:target.name});
     if(this.stage===2)this.log(target.name,['Carrier isolated. Signal strength measured at a known position.','Second bearing acquired. The intersection constrains the source.','Third bearing confirms the lost station. Landing coordinates resolved.'][this.targetIndex-1]);
     if(this.stage===4)this.log(target.name,['Mineral spectrum and sample position recorded.','Context documented. Sample sealed for later analysis.',this.destination.discovery][this.targetIndex-1]);
+    if(this.campaign&&this.stage===4)this.campaign.evidence.push({name:target.name,kind:['mineral','context','recorder'][this.targetIndex-1]});
     if(this.targetIndex>=this.targets.length){
+      if(this.campaign&&this.stage===2&&!this.campaign.completed.survey){this.operation='survey';this.mode='operation';this.emit('operation',{kind:'survey'});return;}
+      if(this.campaign&&this.stage===4&&!this.campaign.completed.analysis){this.operation='analysis';this.mode='operation';this.emit('operation',{kind:'analysis'});return;}
       if(this.stage===4&&!this.eventFlags.recorder){this.eventFlags.recorder=true;this.mode='event';this.emit('event',{id:'recorder'});}else this.finishStage();
     }
   }
@@ -91,6 +98,7 @@ export class Simulation {
     if(this.mode!=='flight')return;
     const dt=clamp(rawDt,0,.06);this.time+=dt;this.stageTime+=dt;this.immunity=Math.max(0,this.immunity-dt);this.pulse=Math.max(0,this.pulse-dt);
     if(this.stage===1&&this.stageTime>12&&!this.eventFlags.flare){this.eventFlags.flare=true;this.mode='event';this.emit('event',{id:'flare'});return;}
+    if(this.campaign&&this.stage===1&&this.eventFlags.flare&&this.stageTime>24&&!this.campaign.completed.repair){this.operation='repair';this.mode='operation';this.emit('operation',{kind:'repair'});return;}
     const t=this.target;if(!t)return;
     const beforeZ=this.position.z;const surface=this.isSurface;
     const boost=keys.boost&&this.fuel>0&&this.heat<98&&!surface;
@@ -114,6 +122,7 @@ export class Simulation {
         const diff=desired*direction-this.speedCommand;
         forward=diff>1?1:0;brake=diff<-.8?1:0;
       }
+      this.throttle=this.fuel>0?(boost?2:forward?.8:0):0;
       const accel=16*thrust;
       if(forward&&this.fuel>0)this.speedCommand+=accel*dt;
       if(brake)this.speedCommand-=accel*1.8*dt;
@@ -153,11 +162,12 @@ export class Simulation {
       if(!surface&&this.position.z<t.z-100){t.z=this.position.z-180;this.emit('miss');}
     }
   }
-  serialize(){return {version:2,destination:this.destination.id,loadout:[...this.loadout],difficulty:this.difficulty,stage:this.stage,hull:this.hull,fuel:this.fuel,power:this.power,score:this.score,repairs:this.repairs,time:this.time,collisions:this.collisions,eventFlags:{...this.eventFlags},journal:[...this.journal],fullArchive:this.fullArchive};}
+  serialize(){return {version:2,destination:this.destination.id,loadout:[...this.loadout],difficulty:this.difficulty,stage:this.stage,hull:this.hull,fuel:this.fuel,power:this.power,score:this.score,repairs:this.repairs,time:this.time,collisions:this.collisions,eventFlags:{...this.eventFlags},journal:[...this.journal],fullArchive:this.fullArchive,campaign:this.campaign?JSON.parse(JSON.stringify(this.campaign)):null};}
   static restore(saved,onEvent){
     if(!saved||saved.version!==2||!Number.isInteger(saved.stage)||saved.stage<0||saved.stage>5||!Array.isArray(saved.loadout)||saved.loadout.length!==4||saved.loadout.some(x=>!Number.isInteger(x)||x<0||x>2))throw new Error('Invalid checkpoint');
     const sim=new Simulation({...saved,onEvent});
     for(const key of ['stage','hull','fuel','power','score','repairs','time','collisions','fullArchive'])if(saved[key]!==undefined)sim[key]=saved[key];
+    if(sim.campaign?.repair==='isolate')sim.stats.scan*=.8;
     sim.eventFlags={...saved.eventFlags};sim.journal=[...(saved.journal||[])];sim.setupStage();sim.mode='briefing';return sim;
   }
 }
