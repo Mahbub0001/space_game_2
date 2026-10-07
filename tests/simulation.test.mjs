@@ -46,3 +46,42 @@ for(const destination of DESTINATIONS){test(`${destination.name}: all six stages
   assert.equal(s.mode,'complete',`Stuck in stage ${s.stage}, target ${s.targetIndex}, range ${s.range}, speed ${s.speed}, mode ${s.mode}`);
   assert.ok(s.score>130);assert.equal(s.journal.length,8);assert.equal(s.fullArchive,true);assert.ok(s.hull>0);
 });}
+
+test('Re-entry intensity triggers on high descent speed in atmospheric stage', () => {
+  const sim = new Simulation({destination: 'mars'});
+  sim.stage = 3;
+  sim.position = {x: 0, y: 40, z: -200};
+  sim.velocity = {x: 0, y: -26, z: 0}; // 26 m/s descent
+  sim.update(0.5);
+  assert.ok(sim.reentryIntensity > 0.2, 'Re-entry intensity should be active above 18 m/s in stage 3');
+});
+
+test('Martian surface triggers dynamic dust storm and battery drain', () => {
+  const sim = new Simulation({destination: 'mars'});
+  sim.stage = 4;
+  sim.stageTime = 25; // 25 seconds into surface traversal
+  sim.update(0.5);
+  assert.strictEqual(sim.stormActive, true, 'Storm should become active after 20s');
+  assert.ok(sim.stormIntensity > 0, 'Storm intensity should ramp up');
+});
+
+test('Alert state escalates to critical when hull or heat reaches dangerous threshold', () => {
+  const sim = new Simulation();
+  sim.hull = 20; // Critical threshold
+  sim.update(0.1);
+  assert.strictEqual(sim.alertLevel, 'critical');
+});
+
+test('Alert and storm state changes emit events', () => {
+  const events = [];
+  const sim = new Simulation({destination: 'mars', onEvent: e => events.push(e)});
+  sim.hull = 20;
+  sim.update(0.1);
+  assert.ok(events.some(e => e.type === 'alertStateChange' && e.level === 'critical'));
+
+  sim.stage = 4;
+  sim.stageTime = 25;
+  sim.update(0.5);
+  assert.ok(events.some(e => e.type === 'stormStateChange' && e.active === true));
+});
+

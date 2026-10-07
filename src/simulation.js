@@ -12,6 +12,7 @@ export class Simulation {
     this.stage=0; this.mode='briefing';this.time=0;this.stageTime=0;this.score=0;this.hull=100;this.fuel=100;
     this.power=100;this.repairs=2;this.route='balanced';this.assist=false;this.eventFlags={};this.journal=[];this.collisions=0;
     this.scan=0;this.targetIndex=0;this.heat=0;this.immunity=0;this.pulse=0;this.fullArchive=false;
+    this.reentryIntensity=0;this.stormActive=false;this.stormIntensity=0;this.alertLevel='nominal';
     this.setupStage();
   }
   emit(type,data={}){this.onEvent({type,...data});}
@@ -22,6 +23,7 @@ export class Simulation {
   get missionProgress(){return (this.stage+this.targetIndex/Math.max(1,this.targets.length))/6;}
   setupStage(){
     this.stageTime=0;this.targetIndex=0;this.scan=0;this.canInteract=false;this.speedCommand=0;this.heat=0;this.heading=0;this.stranded=0;this.throttle=0;
+    this.reentryIntensity=0;this.stormActive=false;this.stormIntensity=0;
     this.position=point(0,this.isSurface?0:8,60);this.velocity=point(0,0,0);this.immunity=2;
     const names=['NAVIGATION GATE 01','NAVIGATION GATE 02','DEPARTURE VECTOR'];
     const make=(p,i,name)=>({...point(...p),name:name||names[i],done:false});
@@ -160,6 +162,59 @@ export class Simulation {
         if(this.scan>=1)this.completeTarget();
       }else this.scan=Math.max(0,this.scan-dt*.11);
       if(!surface&&this.position.z<t.z-100){t.z=this.position.z-180;this.emit('miss');}
+    }
+    this.update(dt);
+    if(this.power<=0&&this.mode==='flight'){this.fail('BATTERY EXHAUSTED','All operating reserves have been used. Choose a stronger power system or conserve scanning power.');return;}
+  }
+  update(dt){
+    // Re-entry in Chapter 04 (Descent)
+    if (this.stage === 3 && this.destination.surface) {
+      const speed = this.speed;
+      if (speed > 18) {
+        this.reentryIntensity = clamp((speed - 18) / 22, 0, 1);
+        if (this.reentryIntensity > 0.3) {
+          this.heat = clamp(this.heat + dt * 15 * this.reentryIntensity, 0, 100);
+          if (this.heat > 85) {
+            this.damage(dt * 6 * this.reentryIntensity, false);
+          }
+        }
+      } else {
+        this.reentryIntensity = Math.max(0, this.reentryIntensity - dt * 2);
+      }
+    } else {
+      this.reentryIntensity = 0;
+    }
+
+    // Dynamic Martian Dust Storm in Chapter 05 (Surface Rover)
+    const prevStormActive = this.stormActive;
+    if (this.isSurface && this.destination.id === 'mars') {
+      if (this.stageTime >= 20 && this.stageTime <= 65) {
+        this.stormActive = true;
+        this.stormIntensity = clamp(this.stormIntensity + dt * 0.25, 0, 1);
+        this.power = clamp(this.power - dt * 0.8 * this.stormIntensity, 0, 100);
+      } else {
+        this.stormIntensity = Math.max(0, this.stormIntensity - dt * 0.2);
+        if (this.stormIntensity === 0) this.stormActive = false;
+      }
+    } else {
+      this.stormActive = false;
+      this.stormIntensity = 0;
+    }
+    if (prevStormActive !== this.stormActive) {
+      this.emit('stormStateChange', {active: this.stormActive, intensity: this.stormIntensity});
+    }
+
+    // Alert State Evaluation
+    let nextAlert = 'nominal';
+    if (this.hull < 30 || this.heat > 90 || this.power < 15) {
+      nextAlert = 'critical';
+    } else if (this.hull < 55 || this.heat > 75 || this.power < 30) {
+      nextAlert = 'warning';
+    }
+    if (nextAlert !== this.alertLevel) {
+      const prevLevel = this.alertLevel;
+      this.alertLevel = nextAlert;
+      this.emit('alertStateChange', {level: nextAlert, prevLevel});
     }
   }
   serialize(){return {version:2,destination:this.destination.id,loadout:[...this.loadout],difficulty:this.difficulty,stage:this.stage,hull:this.hull,fuel:this.fuel,power:this.power,score:this.score,repairs:this.repairs,time:this.time,collisions:this.collisions,eventFlags:{...this.eventFlags},journal:[...this.journal],fullArchive:this.fullArchive,campaign:this.campaign?JSON.parse(JSON.stringify(this.campaign)):null};}
