@@ -92,11 +92,27 @@ export class FlightAudio {
     }
   }
   tone(frequency=600,duration=.12,type='sine',volume=.13,slide=0){if(!this.ctx||this.muted)return;const t=this.ctx.currentTime;const o=this.ctx.createOscillator(),g=this.ctx.createGain();o.type=type;o.frequency.setValueAtTime(frequency,t);if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(20,frequency+slide),t+duration);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(volume,t+.012);g.gain.exponentialRampToValueAtTime(.001,t+duration);o.connect(g);g.connect(this.master);o.start(t);o.stop(t+duration+.02);}
+  impact(amount=16){
+    if(!this.ctx||this.muted)return;
+    const ctx=this.ctx,t=ctx.currentTime,strength=Math.max(.35,Math.min(1,amount/24));
+    // A cabin-transmitted thud, followed by the hull's metallic vibration.
+    this.tone(105,.55,'sine',.42*strength,-76);
+    this.tone(235,.26,'triangle',.17*strength,-130);
+    const buffer=ctx.createBuffer(1,Math.ceil(ctx.sampleRate*.48),ctx.sampleRate);
+    const data=buffer.getChannelData(0);
+    for(let i=0;i<data.length;i++)data[i]=Math.random()*2-1;
+    const source=ctx.createBufferSource(),filter=ctx.createBiquadFilter(),gain=ctx.createGain();
+    source.buffer=buffer;filter.type='lowpass';filter.frequency.setValueAtTime(2600,t);filter.frequency.exponentialRampToValueAtTime(180,t+.45);
+    gain.gain.setValueAtTime(.001,t);gain.gain.linearRampToValueAtTime(.5*strength,t+.004);gain.gain.exponentialRampToValueAtTime(.001,t+.46);
+    source.connect(filter);filter.connect(gain);gain.connect(this.master);
+    source.onended=()=>{source.disconnect();filter.disconnect();gain.disconnect();};
+    source.start(t);source.stop(t+.48);
+  }
   cue(name){
     if(name==='click')this.tone(950,.05,'sine',.07,-220);
     if(name==='scan')this.tone(510,.2,'sine',.1,520);
     if(name==='success'){[440,554,660,880].forEach((f,i)=>setTimeout(()=>this.tone(f,.45,'sine',.09),i*100));}
-    if(name==='impact'){this.tone(90,.65,'sawtooth',.45,-65);this.tone(200,.2,'triangle',.18,-160);}
+    if(name==='impact')this.impact();
     if(name==='alert'){this.tone(580,.15,'square',.06);setTimeout(()=>this.tone(420,.25,'square',.05),180);}
     if(name==='transition'){this.tone(80,2.2,'sine',.2,850);}
   }

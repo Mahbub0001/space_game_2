@@ -1,5 +1,17 @@
 # Verification — Mission Forge v2
 
+## Decision support and pilot onboarding — 2026-10-08
+
+- Production build successful; **38 automated checks pass**. All 135 destination/component previews were checked against simulation specifications and power balance, including Jupiter solar deficit, tank dry/propellant mass, and suggested-build feasibility.
+- `tests/browser-experience.mjs` passed Jupiter power-card/readout agreement, suggested-build installation, keyboard pilot practice, live gate guidance, tutorial replay/skip and stored completion. Zero page errors.
+- `tests/browser-assembly.mjs` passed desktop/mobile installation, horizontal section navigation, independent catalog scrolling with the craft remaining visible, launch gates, engineering toggle and checkpoint restoration.
+- `tests/browser-campaign.mjs` completed the updated assembly/guidance build through all six Mars chapters and Earth docking, including scan effects and rover evidence: **236 science, 83% hull, 2 collisions, zero page errors**. It used optional guidance and an accelerated test clock.
+
+## Assembly navigation layout — 2026-10-08
+
+- Production build successful. The assembly browser check passed horizontal subsystem navigation through all nine sections, arrow end states, left-arrow keyboard selection, and craft/component/footer visibility at 1280 × 800.
+- At 390 × 844, the horizontal strip, mobile engineering panel toggle, nine-module installation and launch passed without horizontal page overflow or page errors. Screenshots updated in `previews/assembly-nine-systems.png` and `previews/assembly-mobile.png`.
+
 ## Nine-section spacecraft assembly — 2026-10-08
 
 - Production build successful; **34 automated checks pass**. Geometry checks cover all 27 components, and simulation checks cover larger-tank delta-v/reserve trade-offs, communications, cooling, control response, recovery rewards and migration of four-module checkpoints.

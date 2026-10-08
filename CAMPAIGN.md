@@ -38,7 +38,7 @@ Planning reserves exclude manual maneuvers, optional operations and recovery. Me
 
 ## Verification
 
-Run `npm test` for 34 simulation checks. With production preview at port 4174, run `node tests/browser-campaign.mjs` and `node tests/browser-assembly.mjs`.
+Run `npm test` for 38 automated checks. With production preview at port 4174, run `node tests/browser-campaign.mjs`, `node tests/browser-assembly.mjs` and `node tests/browser-experience.mjs`.
 
 The campaign browser check uses actual interface/keyboard actions, optional guidance and an accelerated test clock. It completes all six chapters, circuit restoration, three relay clues, both spectral acquisitions, all three surface leads, interpretation, archive recovery and final docking. Production time remains unchanged. Simulation checks separately cover out-of-order leads and early departure with provisional science. Keyboard, removal/reinstallation, power-deficit gating, mobile layout and campaign checkpoint restoration are checked separately.
 

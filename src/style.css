@@ -75,3 +75,52 @@
 }
 .spectrum-presets{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 15px}.spectrum-presets button{border:1px solid #628a93;background:#12303a;color:#d3edeb;padding:10px 13px;font:10px var(--mono);letter-spacing:.03em}.spectrum-presets button:hover,.spectrum-presets button:focus-visible{border-color:#a0ede0;background:#1c4650}.spectrum-presets button.acquired{border-color:#81c8a3;background:#173b35;color:#bbf5d5}.spectrum-presets button.acquired::after{content:' ✓'}
 .assembly-dialog .hangar-slots{grid-template-columns:repeat(3,minmax(0,1fr))}.assembly-dialog .hangar-slots b{font-size:13px;letter-spacing:.4px}.assembly-dialog .hangar-slots button{padding:8px 10px}.assembly-dialog .hangar-stage{height:360px}.assembly-dialog .hangar-hint{font-size:8px}@media(max-width:700px){.assembly-dialog .hangar-slots{grid-template-columns:repeat(2,minmax(0,1fr))}.assembly-dialog .hangar-stage{height:300px}.assembly-dialog .hangar-slots b{font-size:12px}}
+/* Keep the craft and component catalog on screen while subsystems slide horizontally. */
+.assembly-dialog .hangar-layout{position:relative;overflow:hidden;align-items:stretch;padding-right:0}
+.assembly-dialog .hangar-workbench{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.assembly-dialog .hangar-topline{flex:none;align-items:center}
+.assembly-dialog .hangar-stage{flex:1;min-height:160px;height:auto}
+.assembly-dialog .hangar-section-nav{display:flex;align-items:stretch;gap:7px;flex:none;min-width:0;margin-top:10px}
+.hangar-section-nav>[data-hangar]{flex:none;width:32px;border:1px solid #4e8492;background:#102b38;color:#b8f2ee;font:30px var(--display);padding:0;line-height:1}
+.assembly-dialog .hangar-slots{position:relative;display:flex;gap:7px;min-width:0;flex:1;margin:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;scroll-snap-type:x proximity}
+.hangar-slots::-webkit-scrollbar{display:none}
+.assembly-dialog .hangar-slots button{flex:0 0 calc((100% - 14px)/3);min-width:150px;height:76px;scroll-snap-align:center}
+.assembly-dialog .hangar-catalog{flex:0 1 auto;min-height:0;max-height:52%;overflow-y:auto;overflow-x:hidden;scrollbar-color:#477887 #0b202c;padding:0 3px 3px;margin-top:12px}
+.assembly-dialog .part-previews{height:80px}
+.assembly-dialog .hangar-options button{padding-top:82px;min-height:0}
+.assembly-dialog .hangar-readiness{min-height:0;overflow-y:auto;scrollbar-color:#477887 #0b202c;padding-right:4px}
+.hangar-topline [data-hangar=engineering]{display:none}
+@media(max-width:700px){
+ .assembly-dialog .hangar-layout{display:flex}
+ .assembly-dialog .hangar-workbench{width:100%;flex:1}
+ .assembly-dialog .hangar-stage{height:auto;min-height:160px}
+ .assembly-dialog .hangar-readiness{display:none}
+ .assembly-dialog .hangar-topline>span:last-child{font-size:0}
+ .hangar-topline [data-hangar=engineering]{display:inline-block;border:1px solid #4e8492;background:#102b38;color:#b8f2ee;padding:6px;font:8px var(--mono);position:relative;z-index:7}
+ .assembly-dialog [data-engineering=true] .hangar-readiness{display:block;position:absolute;right:0;top:30px;bottom:0;width:min(300px,90%);z-index:6;background:#0b1f2d;border:1px solid #4e8492;padding:14px;margin:0;box-shadow:-12px 0 35px #0009}
+ .assembly-dialog .hangar-slots button{min-width:155px;height:70px}
+ .assembly-dialog .hangar-catalog{max-height:53%}
+ .assembly-dialog .part-previews{height:65px}
+ .assembly-dialog .hangar-options button{padding-top:68px}
+}
+.component-specs,.part-comparison{display:grid;gap:4px;margin-top:9px;padding-top:8px;border-top:1px solid #42606b66;font:9px var(--mono);color:#b8d7de}.component-specs>span,.part-comparison>span{display:flex;justify-content:space-between;gap:5px}.component-specs em,.part-comparison em{font-style:normal;color:#809fab;font-size:8px}.component-specs b,.part-comparison b{font-size:9px;font-weight:400;text-align:right}.part-comparison>em{font-size:7px;line-height:1.5}.part-validity{display:block;margin-top:8px;font:8px var(--mono);color:#9ae1bb;line-height:1.5}.component-specs .invalid,.part-comparison .invalid,.part-validity.invalid{color:#ffb194}.engineering-extra{margin-top:8px;font:9px var(--mono);color:#a2c8d1}.engineering-extra summary{cursor:pointer;padding:9px 0}.assembly-dialog .catalog-heading{position:sticky;top:0;z-index:3;background:#091d29;padding:3px 0;flex-wrap:wrap}.assembly-dialog .catalog-heading h3{flex:1;min-width:170px}.assembly-dialog .part-previews{top:38px}.assembly-dialog .hangar-options strong{font-size:16px}.assembly-dialog .hangar-options small{font-size:9px}
+.mission-guidance{width:420px;max-width:calc(100vw - 48px);white-space:normal;background:#091d29e8;border:1px solid #55798499;padding:10px 13px;margin:0 auto 10px;text-align:left;box-shadow:0 7px 30px #0006}.mission-guidance>span{font:8px var(--mono);color:#8cbbc5;letter-spacing:.12em}.mission-guidance h3{font:600 19px var(--display);margin:4px 0;color:#d8f5ed}.mission-guidance p{font:10px/1.55 var(--body);margin:0;color:#aac5ce}.mission-guidance[data-state=ready]{border-color:#91e6c2}.mission-guidance[data-state=blocked]{border-color:#dda373}.mission-guidance[data-state=working]{box-shadow:0 0 18px #7bd1c329}#pilot-practice{margin-top:9px;border-top:1px solid #517d8966;padding-top:8px}#pilot-practice b{font:8px var(--mono);color:#ead1a1}#pilot-practice p{margin-top:4px}#skip-practice{font:8px var(--mono);background:transparent;border:0;padding:5px 0;color:#85b5c3}.target-marker.ready .target-bracket{animation:capture-glow 1.4s ease-in-out infinite}@keyframes capture-glow{50%{text-shadow:0 0 15px #9be8d0}}
+@media(max-width:700px){.assembly-dialog .catalog-heading h3{min-width:100%;font-size:10px}.assembly-dialog .catalog-heading button{font-size:7px}.assembly-dialog .part-previews{top:66px}.assembly-dialog .hangar-options button{padding-top:72px}.component-specs>span,.part-comparison>span{display:block}.component-specs em,.part-comparison em{display:block;font-size:7px}.component-specs b,.part-comparison b{display:block;text-align:left;font-size:8px}.part-validity{font-size:7px}.mission-guidance{width:300px;max-width:calc(100vw - 70px);padding:8px 10px;margin-bottom:7px}.mission-guidance h3{font-size:16px}.mission-guidance p{font-size:9px}.mission-guidance>span{font-size:7px}#pilot-practice{margin-top:6px;padding-top:6px}}
+@media(prefers-reduced-motion:reduce){.target-marker.ready .target-bracket{animation:none}}
+/* Optional flight help stays inside the cockpit sidebar, leaving the flight view clear. */
+.objective-panel .mission-guidance{width:100%;max-width:none;margin:10px 0 0;padding:0;white-space:normal;background:transparent;border:0;border-top:1px solid var(--line);box-shadow:none;text-align:left}
+.mission-guidance summary{display:flex;justify-content:space-between;align-items:center;cursor:pointer;pointer-events:auto;list-style:none;padding:9px 0 2px;font:8px var(--mono);color:#8cbbc5;letter-spacing:.08em}
+.mission-guidance summary::-webkit-details-marker{display:none}
+.mission-guidance summary:focus-visible{outline:2px solid var(--bright);outline-offset:3px}
+.mission-guidance[open] .help-chevron{transform:rotate(180deg)}
+.objective-panel .guidance-content{padding-top:7px;max-height:180px;overflow:auto;scrollbar-width:thin;pointer-events:auto}
+.objective-panel .mission-guidance h3{font-size:15px;margin:0 0 5px}
+.objective-panel .mission-guidance p{font-size:9px;line-height:1.5}
+.objective-panel .mission-guidance[data-state=working]{box-shadow:none}
+@media(max-width:700px){.objective-panel .guidance-content{max-height:130px}.objective-panel .mission-guidance h3{font-size:12px}.objective-panel .mission-guidance p{font-size:8px}.mission-guidance summary{font-size:7px}}
+ .build-flexibility{margin:12px 0 18px;padding:12px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+ .build-flexibility label{display:block;font:8px var(--mono);color:#91bbc4;margin:8px 0 6px}
+ .build-flexibility select{width:100%;min-width:0;background:#102430;border:1px solid #466673;color:var(--ink);padding:8px 6px;font:10px var(--body)}
+ .build-flexibility p{font:9px/1.5 var(--body);color:var(--muted)}
+ .quick-components summary{cursor:pointer;color:var(--cyan);font:9px var(--mono);padding:8px 0}
+ .quick-components[open]{padding-bottom:8px}

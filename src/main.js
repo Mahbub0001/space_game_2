@@ -13,7 +13,9 @@ import {Simulation} from './simulation.js';
 import {SpaceWorld} from './world.js';
 import {FlightAudio} from './audio.js';
 import {AssemblyHangar} from './assembly.js';
+import {FlightCoach,missionGuidance,interactionLimits} from './experience.js';
 let assembly=null;
+let coach=null;
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -75,6 +77,7 @@ function operationDialog(kind){
 function initializeFlight(checkpoint=null){
   closeDialog();audio.start();audio.stopKlaxon();audio.updateWind(0);document.body.classList.remove('hud-alert-critical','hud-alert-warning');sim=checkpoint?Simulation.restore(checkpoint,handleEvent):new Simulation({destination:DESTINATIONS[selected].id,loadout,difficulty,campaign:committedPlan,onEvent:handleEvent});
   view='flight';$('#menu-view').hidden=true;$('#flight-view').hidden=false;document.body.classList.add('in-flight');
+  coach=new FlightCoach(getSaved('odyssey-coach-complete',false));
   $('#touch-controls').hidden=!matchMedia('(pointer: coarse)').matches;world.setupStage(sim);saveCheckpoint();buildFlightHud();showBriefing();
 }
 function saveCheckpoint(){savedCheckpoint=sim.checkpoint;save('odyssey-checkpoint',savedCheckpoint);$('#resume-button').hidden=false;}
@@ -97,6 +100,7 @@ function showBriefing(){
 }
 function buildFlightHud(){
   hazardTipActive=false;reentryCommsSent=false;
+  if(!$('#mission-guidance'))$('.objective-panel').insertAdjacentHTML('beforeend','<details id="mission-guidance" class="mission-guidance"><summary aria-label="Show flight guidance and pilot practice"><span>FLIGHT HELP</span><span class="help-chevron">⌄</span></summary><div class="guidance-content"><h3 id="guidance-title"></h3><p id="guidance-detail"></p><div id="pilot-practice"><b id="practice-title"></b><p id="practice-detail"></p><button id="skip-practice">SKIP PRACTICE</button></div></div></details>');
   const s=stageInfo();$('#flight-chapter').textContent=`${s.chapter} / ${s.short.toUpperCase()} · ${sim.destination.name}`;$('#flight-title').textContent=s.title;$('#objective-main').textContent=s.verb;
   $('#resource-bars').innerHTML=[['hull','HULL INTEGRITY','#a0dbd7'],['fuel','PROPELLANT','#e4bb82'],['power','POWER RESERVE','#87bedb']].map(([key,name,color])=>`<div class="resource-row" id="resource-${key}" style="--bar-color:${color}"><div><span>${name}</span><b><span id="value-${key}">100</span><small>%</small></b></div><span class="resource-track"><i id="bar-${key}" style="width:100%"></i></span></div>`).join('');
   $('#resource-bars').insertAdjacentHTML('beforeend','<div class="resource-row" style="--bar-color:#a8abdf"><div><span>COMMS LINK</span><b><span id="value-comms">82</span><small>%</small></b></div><span class="resource-track"><i id="bar-comms" style="width:82%"></i></span></div>');
@@ -135,7 +139,7 @@ function handleEvent(event){
   if(event.type==='expeditionReady'){audio.cue('success');updateObjectives();communicate('Science Officer Sen','The recorder and a science record are aboard. We can depart now. A second field record would make the environmental interpretation stronger.');notify('RETURN OPTION UNLOCKED · PRESS X OR KEEP EXPLORING');}
   if(event.type==='clue'){keys={};audio.cue('scan');showDialog('clue',`${header(event.clue.label,'A PIECE OF THE SIGNAL.')}<p class="eyebrow">${event.clue.speaker}</p><p class="dialog-lead">${event.clue.message}</p><div class="briefing-fact"><span>⌬</span><p><b>MISSION LOG UPDATED</b><br>${event.clue.finding}</p></div><div class="dialog-footer"><span>FRAGMENT ${event.index+1} / 3 RECOVERED</span><button class="primary-button" id="ack-clue"><span>RETURN TO THE CONTROLS</span><b>↗</b></button></div>`);}
   if(event.type==='impact'){
-    audio.cue('impact');world.impact();const flash=$('#impact-flash');flash.classList.remove('flash');void flash.offsetWidth;flash.classList.add('flash');
+    audio.impact(event.amount);world.impact();const flash=$('#impact-flash');flash.classList.remove('flash');void flash.offsetWidth;flash.classList.add('flash');
     const worldEl=$('#world');worldEl.classList.remove('screen-glitch');void worldEl.offsetWidth;worldEl.classList.add('screen-glitch');setTimeout(()=>worldEl.classList.remove('screen-glitch'),300);
     notify('IMPACT · Hull damage. Steer clear or press R to repair.','warning');
   }
@@ -184,7 +188,7 @@ function pauseMenu(){
 function controlsDialog(){
   if(dialogKind==='briefing'||dialogKind==='event'||dialogKind==='complete'||dialogKind==='failed')return;
   pauseForDialog();showDialog('controls',`${header('PILOT FIELD MANUAL','YOU HAVE THE CONTROLS.',true)}<div class="controls-grid">${[
-    ['Thrust / rover forward','W'],['Brake / reverse','S'],['Translate / rover steering','A D'],['Altitude / rover drive','↑ ↓'],['Boost (uses fuel & generates heat)','SPACE'],['Press once to scan, recover, land or dock','E'],['Toggle guidance assistance','G'],['Change camera','C'],['Engine / science / shield power','1 2 3'],['Use repair kit','R'],['Sensor pulse','Q'],['Pause / resume','ESC'],['Controls / flight log','H L'],['Mute / fullscreen','M F']].map(([label,key])=>`<div class="control-row"><span>${label}</span><span>${key.split(' ').map(k=>`<kbd>${k}</kbd>`).join('')}</span></div>`).join('')}</div><p>Flight is relative to the forward corridor: A/D use lateral thrusters and arrow keys change altitude. Space flight preserves forward momentum. On the surface, A/D turn the rover. Navigation gates in the first two chapters complete when you fly through them; no E is needed. For later operations, the HUD shows the required distance and speed. Guidance is optional; it tracks the marked target and brakes for you, but you still choose actions and operate the instruments.</p><div class="settings-row"><button class="outline-button" id="voice-toggle">VOICE ${audio.voice?'ON':'OFF'}</button><button class="outline-button" id="quality-toggle">GRAPHICS ${world.highQuality?'HIGH':'LOW'}</button><button class="primary-button" data-close><span>RETURN TO FLIGHT DECK</span><b>↗</b></button></div>`);
+    ['Thrust / rover forward','W'],['Brake / reverse','S'],['Translate / rover steering','A D'],['Altitude / rover drive','↑ ↓'],['Boost (uses fuel & generates heat)','SPACE'],['Press once to scan, recover, land or dock','E'],['Toggle guidance assistance','G'],['Change camera','C'],['Engine / science / shield power','1 2 3'],['Use repair kit','R'],['Sensor pulse','Q'],['Pause / resume','ESC'],['Controls / flight log','H L'],['Mute / fullscreen','M F']].map(([label,key])=>`<div class="control-row"><span>${label}</span><span>${key.split(' ').map(k=>`<kbd>${k}</kbd>`).join('')}</span></div>`).join('')}</div><p>Flight is relative to the forward corridor: A/D use lateral thrusters and arrow keys change altitude. Space flight preserves forward momentum. On the surface, A/D turn the rover. Navigation gates in the first two chapters complete when you fly through them; no E is needed. For later operations, the HUD shows the required distance and speed. Guidance is optional; it tracks the marked target and brakes for you, but you still choose actions and operate the instruments.</p><div class="settings-row"><button class="outline-button" id="replay-practice">REPLAY PILOT PRACTICE</button><button class="outline-button" id="voice-toggle">VOICE ${audio.voice?'ON':'OFF'}</button><button class="outline-button" id="quality-toggle">GRAPHICS ${world.highQuality?'HIGH':'LOW'}</button><button class="primary-button" data-close><span>RETURN TO FLIGHT DECK</span><b>↗</b></button></div>`);
   $('#voice-toggle').onclick=e=>{audio.voice=!audio.voice;if(!audio.voice)audio.stopVoice();e.currentTarget.textContent='VOICE '+(audio.voice?'ON':'OFF');persistSettings();};
   $('#quality-toggle').onclick=e=>{world.setQuality(!world.highQuality);e.currentTarget.textContent='GRAPHICS '+(world.highQuality?'HIGH':'LOW');persistSettings();};
 }
@@ -209,9 +213,9 @@ function updateHud(){
   if(!guide.hidden&&sim.target){const dx=sim.target.x-sim.position.x,dy=sim.target.y-sim.position.y;$('#approach-name').textContent=sim.stage===5?'DOCKING / RELATIVE MOTION':'LANDING / CAPTURE CORRIDOR';$('#approach-state').textContent=sim.canInteract?'CAPTURE READY':sim.speed>10?'BRAKE':'ALIGN';guide.classList.toggle('ready',sim.canInteract);$('#approach-dot').setAttribute('cx',80+clamp(dx,-65,65));$('#approach-dot').setAttribute('cy',50-clamp(dy,-40,40));$('#approach-values').textContent=`LATERAL ${Math.hypot(dx,dy).toFixed(1)} m · SPEED ${sim.speed.toFixed(1)} m/s`;}
   const prompt=$('#interact-prompt');prompt.hidden=!sim.target||sim.range>140;
   prompt.querySelector('kbd').textContent=sim.stage<2?'→':'E';
-  const captureRange=sim.isSurface?24:sim.stage===2||sim.stage===4?65:35;
-  const captureSpeed=sim.isSurface?4:sim.stage===5?8:sim.stage===3?10:12;
-  $('#interact-label').textContent=sim.stage<2?'FLY THROUGH THE GATE · NO E':sim.canInteract?(sim.interactionQueued||keys.interact?'WORKING · STAY IN RANGE':sim.stage===5?'PRESS E TO DOCK':sim.stage===3?'PRESS E TO '+(sim.destination.surface?'LAND':'CAPTURE'):sim.isSurface?'PRESS E TO COLLECT':'PRESS E TO SCAN'):sim.range>=captureRange?`CLOSE TO ${captureRange} M · PRESS E`:`BRAKE BELOW ${captureSpeed} M/S · PRESS E`;
+  const {range:captureRange,speed:captureSpeed}=interactionLimits(sim);
+  $('#interact-label').textContent=sim.stage<2?'FLY THROUGH THE GATE · NO E':sim.canInteract?(sim.interactionQueued||keys.interact?`${Math.round(sim.scan*100)}% · WORKING · STAY IN RANGE`:sim.stage===5?'PRESS E TO DOCK':sim.stage===3?'PRESS E TO '+(sim.destination.surface?'LAND':'CAPTURE'):sim.isSurface?'PRESS E TO COLLECT':'PRESS E TO SCAN'):sim.range>=captureRange?`CLOSE TO ${captureRange} M · PRESS E`:`BRAKE BELOW ${captureSpeed} M/S · PRESS E`;
+  if($('#mission-guidance')){const next=missionGuidance(sim),practice=coach?.prompt(sim);$('#mission-guidance').dataset.state=next.state;$('#guidance-title').textContent=next.title;$('#guidance-detail').textContent=next.detail;$('#pilot-practice').hidden=!practice;if(practice){$('#practice-title').textContent=practice.title;$('#practice-detail').textContent=practice.detail;}$('#mission-guidance').hidden=sim.mode!=='flight';}
   $('#scan-progress').style.width=clamp(sim.scan,0,1)*100+'%';
   if(sim.target){$('#marker-label').textContent=sim.target.name;$('#marker-range').textContent=Math.round(sim.range)+' M';$('#target-marker').classList.toggle('ready',!!sim.canInteract);}
   drawRoverMap();
@@ -258,6 +262,8 @@ document.addEventListener('click',e=>{
   if(b.matches('[data-rover-target]'))sim?.selectSurfaceTarget(Number(b.dataset.roverTarget));
   if(b.id==='rover-depart')sim?.departSurface();
   if(b.id==='ack-clue'){closeDialog();sim?.acknowledgeClue();}
+  if(b.id==='skip-practice'){coach=new FlightCoach(true);save('odyssey-coach-complete',true);updateHud();}
+  if(b.id==='replay-practice'){coach=new FlightCoach(false);save('odyssey-coach-complete',false);closeDialog();updateHud();$('#mission-guidance').open=true;}
 
   if(b.matches('[data-close]')){closeDialog();if(sim?.mode==='paused')sim.resume();}
   if(b.matches('[data-effect]')){const effect=b.dataset.effect;closeDialog();audio.stopVoice();sim.choose(effect);}
@@ -307,7 +313,7 @@ $$('[data-key]').forEach(b=>{b.onpointerdown=e=>{e.preventDefault();audio.start(
 
 function tick(now){
   const dt=Math.min((now-lastFrame)/1000,.1);lastFrame=now;accumulator+=dt;
-  while(accumulator>=1/60){sim?.step(1/60,keys);accumulator-=1/60;}
+  while(accumulator>=1/60){sim?.step(1/60,keys);if(sim&&coach){const wasComplete=coach.basicComplete&&coach.scanComplete;coach.update(sim,keys,1/60);if(!wasComplete&&coach.basicComplete&&coach.scanComplete){save('odyssey-coach-complete',true);audio.cue('success');notify('PILOT PRACTICE COMPLETE · You control the mission.');}}accumulator-=1/60;}
   assembly?.update(dt);if(!assembly)world.update(dt,view==='flight'?sim:null);audio.update(dt,sim);
   if(view==='menu')$('#planet-rotation').textContent=(world.planet.rotation.y*180/Math.PI%360).toFixed(1).padStart(5,'0')+'°';
   else if(sim){
@@ -316,7 +322,7 @@ function tick(now){
     if(p){marker.style.left=clamp(p.x,innerWidth<800?35:260,innerWidth-(innerWidth<800?35:275))+'px';marker.style.top=clamp(p.y,150,innerHeight-230)+'px';marker.style.opacity=p.behind?'.3':'1';}
     typed=Math.min(transcript.length,typed+dt*48);$('#comm-text').textContent=transcript.slice(0,Math.floor(typed));if(typed>=transcript.length)$('#comm-state').textContent='TRANSMISSION RECEIVED';
     if(sim.mode==='flight'&&sim.stage===0&&sim.campaign){$('#flight-tip').innerHTML=sim.assist?'GUIDANCE ENGAGED · Watch the ship track gates. Press <kbd>G</kbd> to take control.':sim.stageTime<8?'FIRST MANEUVER · Hold <kbd>W</kbd> to thrust toward the navigation gate.':sim.stageTime<16?'INERTIA · Release <kbd>W</kbd> to coast. Hold <kbd>S</kbd> to brake.':'ALIGN WITH THE GATE · <kbd>A</kbd><kbd>D</kbd> lateral · <kbd>↑</kbd><kbd>↓</kbd> altitude · <kbd>G</kbd> guidance';}
-    if(sim.mode==='flight'&&sim.scan>0&&keys.interact){scanSound+=dt;if(scanSound>.5){audio.cue('scan');scanSound=0;}}
+    if(sim.mode==='flight'&&sim.scan>0&&(keys.interact||sim.interactionQueued)){scanSound+=dt;if(scanSound>.5){audio.cue('scan');scanSound=0;}}
   }
   requestAnimationFrame(tick);
 }

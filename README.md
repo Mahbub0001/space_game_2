@@ -37,6 +37,8 @@ On a new Mars campaign, three intercepted relay fragments advance the story. The
 
 ## Controls
 
+The first flight offers pilot practice for thrust, braking and alignment. The relay chapter teaches one-press E scanning. Practice is optional and can be replayed from Controls. A live NEXT ACTION card explains the selected target, required distance/speed, blockers and operation progress. Green capture markers, a scan beam, progress percentages and optional sound confirm instrument activity.
+
 | Action | Keyboard |
 |---|---|
 | Thrust / rover forward | W |
@@ -103,6 +105,10 @@ When the event resource pack is available, connect its scientific objectives to 
 
 
 ## Phase 00 — 3D spacecraft assembly
+
+Every component card includes its electrical draw or destination-specific generation, relevant subsystem ratings, and a full-build preview of wet mass, cost, ideal delta-v and power margin versus the selected design. These values share the specification and calculations used by the simulation. Assembled mass/cost count installed hardware; projected performance includes every selected module, including unfinished sockets. INSTALL SUGGESTED BUILD installs a balanced configuration that fits all destination design gates and remains editable. Extra engineering readouts are collapsible.
+
+Subsystems appear in one horizontal strip. The ‹ / › buttons select the previous/next section; left/right keys do the same while that strip is focused. The craft viewport remains visible above the component cards while selecting and installing modules. Engineering readouts scroll separately on desktop; on mobile, use the ENGINEERING button to open or close the readout panel.
 
 The hangar has nine sections and 27 component variants. Keys 1–9 select a section. Communications modify relay acquisition speed; radiators modify heat dissipation; attitude control modifies lateral response; the recovery bay modifies recovered science yield. Tank options carry 28, 34 or 40 t of propellant: larger tanks increase ideal delta-v and game reserves while adding both tank structure and propellant mass. Each module has its own animated 3D preview, installation, removal and exploded-view position. All nine selected modules persist into flight and mission exports.
 

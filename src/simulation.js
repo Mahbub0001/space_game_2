@@ -1,5 +1,6 @@
 import {flightPlan,SITES,SIGNAL_FRAGMENTS,resolveOperation} from './campaign.js';
 import {DESTINATIONS,STAGES,SYSTEMS,DEFAULT_LOADOUT,normalizeLoadout,designStats,clamp} from './data.js';
+import {interactionLimits} from './experience.js';
 
 export function seeded(seed=1287){return ()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};}
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z);
@@ -188,8 +189,7 @@ export class Simulation {
       if((range<25)||(crossed&&Math.hypot(this.position.x-t.x,this.position.y-t.y)<30))this.completeTarget();
       else if(this.position.z<t.z-55){t.z=this.position.z-200;this.score=Math.max(0,this.score-2);this.emit('miss');}
     }else{
-      const maxRange=surface?24:this.stage===2||this.stage===4?65:35;
-      const maxSpeed=surface?4:this.stage===5?8:this.stage===3?10:12;
+      const {range:maxRange,speed:maxSpeed}=interactionLimits(this);
       this.canInteract=range<maxRange&&this.speed<maxSpeed;
       if((keys.interact||this.interactionQueued)&&this.canInteract){
         const scanRate=this.stage===2?this.stats.scan*this.stats.link:this.stage===4?this.stats.scan:1;
